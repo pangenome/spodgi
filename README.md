@@ -16,3 +16,14 @@ needs to be done using `odgi build -g test/t.gfa -o test/o.odgi`
 ```
 ./odgi_to_rdf.py ~/git/odgi/test/t.odgi test/t.ttl
 ```
+
+# Ideas
+
+Write out the data from an `odgi` file to rdf. For now `turtle` but pragmatically anything supported by RDFlib. 
+
+The end state is to translate SPARQL queries directly via the RDFLib engine to odgi graph calls. Which would make any odgi file available on the semantic web. Making any `handlegraph` system a SPARQL endpoint if so desired.
+
+# Help wanted
+
+This is a hobby for me, but could be very useful for others so please join and hack on this ;)
+
