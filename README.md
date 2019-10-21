@@ -27,3 +27,6 @@ The end state is to translate SPARQL queries directly via the RDFLib engine to o
 
 This is a hobby for me, but could be very useful for others so please join and hack on this ;)
 
+# Methods in ODGI
+
+The code to map to ODGI is listed in [ODGI src pythonmodule.cpp](https://github.com/vgteam/odgi/blob/master/src/pythonmodule.cpp)
