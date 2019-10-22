@@ -14,19 +14,21 @@ __all__ = [ 'OdgiStore' ]
 
 ANY = Any = None
 
-class ToTurtle:
-    def __init__(self, og, base, format):
+class NodeToPattern:
+    def __init__(self, og, base, predicate):
         self.og = og
         self.base = base
-        self.format = format
+        self.predicate = predicate;
 
     def __call__(self, handle):
         nodeId = self.og.get_id(handle);
         nodeIri = rdflib.term.URIRef(f'{self.base}node/{nodeId}')
-        seqValue = rdflib.term.Literal(self.og.get_sequence(handle))
+    
+        if (predicate == RDF.value):
+            seqValue = rdflib.term.Literal(self.og.get_sequence(handle))
+            yield [(nodeIri, predicate, seqvalue), None]
         
-        pprint.pprint((nodeIri, RDF.value, seqValue))
-        pprint.pprint((nodeIri, RDF.type, VG.Node))
+        
 
 class OdgiStore(Store):
     """\
@@ -38,6 +40,10 @@ class OdgiStore(Store):
     def __init__(self, configuration=None, identifier=None):
         super(OdgiStore, self).__init__(configuration)
         self.identifier = identifier
+        if not configuration == None:
+            self.base = configuration.base
+        else:
+            self.base = 'http://example.org/'
         
     def open(self, odgifile, create=False):
         og = odgi.graph()
@@ -57,10 +63,29 @@ class OdgiStore(Store):
                     if 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
                         yield [(subject, predicate, object), None]
                 else:
-                    """We need to return all the nodes"""
-                    return self.iterate_from(odgi.for_each_handle(toTriple(self.odgi, base, syntax)))
+                    print("""We need to return all the nodes""")
+                    return self.nodeToTriples(predicate, self.nodes)
     
     def __emptygen(self):
         """return an empty generator"""
         if False:
             yield
+    
+    def nodeToTriples(self, predicate, nodes):
+        print('nodeToTriples')
+        for node in nodes:
+            nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id}')
+            if (predicate == RDF.value):
+                seqValue = rdflib.term.Literal(self.odgi.get_sequence(handle))
+                yield [(nodeIri, predicate, seqvalue), None]
+            elif(predicate == RDF.type):
+                yield [(nodeIri, RDF.type, VG.Node), None]
+    
+    def nodes():
+        print('nodes')
+        nodeId = self.odgi.min_node_id
+        maxNodeId = self.odgi.max_node_id
+        while (nodeId <= maxNodeId):
+            if(self.odgi.has_node(nodeId)):
+                yield self.odgi.get_node(nodeId)
+                nodeId+1 
