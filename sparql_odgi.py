@@ -19,10 +19,12 @@ from rdflib import plugin
 def main(odgifile, sparql, base, syntax):
     
     plugin.register('OdgiStore', Store,'spodgi.OdgiStore', 'OdgiStore')
-    print(plugin.get('OdgiStore', Store))
     spodgi = Graph(store='OdgiStore')
     spodgi.open(odgifile, create=False)
-    spodgi.query(sparql)
+    res = spodgi.query(sparql)
+    
+    for row in res:
+        print(row)
     spodgi.close()
 
 if __name__ == "__main__":

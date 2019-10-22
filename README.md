@@ -21,7 +21,7 @@ needs to be done using `odgi build -g test/t.gfa -o test/o.odgi`
 # Running a SPARQL query on a ODGI
 
 ```bash
-./sparql_odgi.py  ../odgi/test/t.odgi 'ASK {?n a <http://biohackathon.org/resource/VG#Node>}'
+./sparql_odgi.py  ../odgi/test/t.odgi 'ASK {<http://example.org/node/1> a <http://biohackathon.org/resource/vg#Node>}'
 ```
 
 # Ideas

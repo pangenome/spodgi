@@ -47,16 +47,18 @@ class OdgiStore(Store):
     def triples(self, triple_pattern, context=None):
         """A generator over all the triples matching """
         subject, predicate, object = triple_pattern
-        print(predicate == RDF.type)
-        print(object)
+        
         if RDF.type == predicate and object != ANY:
             if not knownTypes.__contains__(object):
                 return self.__emptygen()
-            elif VG.Node == object and subject != ANY and subject.contains('/node/'):
-                yield (subject, predicate, object)
             elif VG.Node == object:
-                """We need to return all the nodes"""
-                return self.iterate_from(odgi.for_each_handle(toTriple(self.odgi, base, syntax)))
+                if subject != ANY:
+                    subjectIriParts = subject.toPython().split('/')
+                    if 'node' == subjectIriParts[-2] and self.odgi.get_handle(int(subjectIriParts[-1])) != None:
+                        yield [(subject, predicate, object), None]
+                else:
+                    """We need to return all the nodes"""
+                    return self.iterate_from(odgi.for_each_handle(toTriple(self.odgi, base, syntax)))
     
     def __emptygen(self):
         """return an empty generator"""
