@@ -64,28 +64,28 @@ class OdgiStore(Store):
                         yield [(subject, predicate, object), None]
                 else:
                     print("""We need to return all the nodes""")
-                    return self.nodeToTriples(predicate, self.nodes)
+                    for node in self.nodes():
+                        yield self.nodeToTriples(predicate, node)
+                     
     
     def __emptygen(self):
         """return an empty generator"""
         if False:
             yield
     
-    def nodeToTriples(self, predicate, nodes):
-        print('nodeToTriples')
-        for node in nodes:
-            nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id}')
-            if (predicate == RDF.value):
-                seqValue = rdflib.term.Literal(self.odgi.get_sequence(handle))
-                yield [(nodeIri, predicate, seqvalue), None]
-            elif(predicate == RDF.type):
-                yield [(nodeIri, RDF.type, VG.Node), None]
+    def nodeToTriples(self, predicate, node):
+        nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(node)}')
+        if (predicate == RDF.value):
+            seqValue = rdflib.term.Literal(self.odgi.get_sequence(node))
+            return [(nodeIri, predicate, seqvalue), None]
+        elif (predicate == RDF.type):
+            return [(nodeIri, RDF.type, VG.Node), None]
     
-    def nodes():
-        print('nodes')
-        nodeId = self.odgi.min_node_id
-        maxNodeId = self.odgi.max_node_id
-        while (nodeId <= maxNodeId):
+    def nodes(self):
+        nodeId = self.odgi.min_node_id()
+        maxNodeId = self.odgi.max_node_id()
+        while (nodeId < maxNodeId):
             if(self.odgi.has_node(nodeId)):
-                yield self.odgi.get_node(nodeId)
-                nodeId+1 
+                nodeId=nodeId+1 
+                yield self.odgi.get_handle(nodeId)
+        return
