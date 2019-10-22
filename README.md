@@ -13,8 +13,15 @@ I currently depend on two pip installs
 You need to have an odgi file. So conversion from GFA
 needs to be done using `odgi build -g test/t.gfa -o test/o.odgi`
 
+# Conversion to turtle
 ```
 ./odgi_to_rdf.py ~/git/odgi/test/t.odgi test/t.ttl
+```
+
+# Running a SPARQL query on a ODGI
+
+```bash
+./sparql_odgi.py  ../odgi/test/t.odgi 'ASK {?n a <http://biohackathon.org/resource/VG#Node>}'
 ```
 
 # Ideas
