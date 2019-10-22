@@ -54,7 +54,7 @@ class OdgiStore(Store):
             elif VG.Node == object:
                 if subject != ANY:
                     subjectIriParts = subject.toPython().split('/')
-                    if 'node' == subjectIriParts[-2] and self.odgi.get_handle(int(subjectIriParts[-1])) != None:
+                    if 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
                         yield [(subject, predicate, object), None]
                 else:
                     """We need to return all the nodes"""
