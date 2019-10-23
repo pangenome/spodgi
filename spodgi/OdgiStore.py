@@ -75,12 +75,15 @@ class OdgiStore(Store):
     def nodes(self, subject, predicate, object):
         if subject != ANY:
             subjectIriParts = subject.toPython().split('/')
-            if 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
+            if predicate == RDF.type and object == VG.Node and 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
                 yield [(subject, predicate, object), None]
+            elif predicate == ANY and object == VG.Node and 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
+                yield [(subject, predicate, object), None]
+            elif 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
+                yield self.handleToTriples(predicate, self.odgi.get_handle(int(subjectIriParts[-1])))
             else:
                 return self.__emptygen()
         else:
-            print("""We need to return all the nodes""")
             for handle in self.handles():
                 yield self.handleToTriples(predicate, handle)
 

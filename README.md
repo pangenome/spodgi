@@ -44,3 +44,7 @@ This is a hobby for me, but could be very useful for others so please join and h
 # Methods in ODGI
 
 The code to map to ODGI is listed in [ODGI src pythonmodule.cpp](https://github.com/vgteam/odgi/blob/master/src/pythonmodule.cpp)
+
+# How can this work?
+
+The trick is that in VG RDF there are almost one to one mappings between a `rdf:type` or a predicate and a handlgegraph object type. For example if we see `vg:Node` we know we are dealing with a `handle`, if we see `rdf:value` as predicate the same. These predicates, classes and objects map straight forward.
