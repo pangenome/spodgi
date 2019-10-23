@@ -24,6 +24,13 @@ needs to be done using `odgi build -g test/t.gfa -o test/o.odgi`
 ./sparql_odgi.py  ../odgi/test/t.odgi 'ASK {<http://example.org/node/1> a <http://biohackathon.org/resource/vg#Node>}'
 ```
 
+Finding the nodes with sequences that are longer than 5 nucleotides
+
+```bash
+./sparql_odgi.py  ../odgi/test/t.odgi 'PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#> SELECT ?seq WHERE {?x rdf:value ?seq . FILTER(strlen(?seq) >5)}'
+
+```
+
 # Ideas
 
 Write out the data from an `odgi` file to rdf. For now `turtle` but pragmatically anything supported by RDFlib. 

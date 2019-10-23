@@ -58,30 +58,47 @@ class OdgiStore(Store):
             if not knownTypes.__contains__(object):
                 return self.__emptygen()
             elif VG.Node == object:
-                if subject != ANY:
-                    subjectIriParts = subject.toPython().split('/')
-                    if 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
-                        yield [(subject, predicate, object), None]
-                else:
-                    print("""We need to return all the nodes""")
-                    for node in self.nodes():
-                        yield self.nodeToTriples(predicate, node)
+                return self.nodes(subject, predicate, object)
+            elif VG.Path == object:
+                return self.paths(subject, predicate, object)
+            elif VG.Step == object:
+                return self.steps(subject, predicate, object)
+        elif RDF.value == predicate:
+            return self.nodes(subject, predicate, object)
                      
     
     def __emptygen(self):
         """return an empty generator"""
         if False:
             yield
-    
-    def nodeToTriples(self, predicate, node):
+ 
+    def nodes(self, subject, predicate, object):
+        if subject != ANY:
+            subjectIriParts = subject.toPython().split('/')
+            if 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
+                yield [(subject, predicate, object), None]
+            else:
+                return self.__emptygen()
+        else:
+            print("""We need to return all the nodes""")
+            for handle in self.handles():
+                yield self.handleToTriples(predicate, handle)
+
+    def paths(self, predicate, object):
+        return self.__emptygen()
+
+    def steps(self, predicate, object):
+        return self.__emptygen()
+
+    def handleToTriples(self, predicate, node):
         nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(node)}')
         if (predicate == RDF.value):
             seqValue = rdflib.term.Literal(self.odgi.get_sequence(node))
-            return [(nodeIri, predicate, seqvalue), None]
+            return [(nodeIri, predicate, seqValue), None]
         elif (predicate == RDF.type):
             return [(nodeIri, RDF.type, VG.Node), None]
     
-    def nodes(self):
+    def handles(self):
         nodeId = self.odgi.min_node_id()
         maxNodeId = self.odgi.max_node_id()
         while (nodeId < maxNodeId):
