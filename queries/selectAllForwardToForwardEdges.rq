@@ -1,0 +1,4 @@
+SELECT * 
+WHERE {
+    ?s <http://biohackathon.org/resource/vg#linksForwardToForward> ?o
+}

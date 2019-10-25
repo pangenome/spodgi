@@ -1,0 +1,4 @@
+SELECT * 
+WHERE {
+    ?s a <http://biohackathon.org/resource/vg#Step>
+}

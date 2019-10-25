@@ -10,7 +10,7 @@ from itertools import chain
 VG = rdflib.Namespace('http://biohackathon.org/resource/vg#')
 
 knownTypes = [VG.Node, VG.Path, VG.Step]
-knownPredicates = [RDF.value, VG.rank, VG.offset, VG.step, VG.path]
+knownPredicates = [RDF.value, VG.rank, VG.offset, VG.step, VG.path, VG.linksForwardToForward, VG.node]
 
 __all__ = [ 'OdgiStore' ]
 
@@ -55,7 +55,6 @@ class OdgiStore(Store):
     def triples(self, triple_pattern, context=None):
         """A generator over all the triples matching """
         subject, predicate, object = triple_pattern
-        print('triples '+ str(predicate))
         if RDF.type == predicate and object != ANY:
             if not knownTypes.__contains__(object):
                 return self.__emptygen()
@@ -66,8 +65,9 @@ class OdgiStore(Store):
             elif VG.Step == object:
                 return self.steps(subject, predicate, object)
         elif RDF.value == predicate:
-            
             return self.nodes(subject, predicate, object)
+        elif VG.node == predicate:
+            return self.steps(subject, VG.node, object)
         elif subject == ANY and predicate == ANY and object == ANY:
             return chain(self.__allPredicates(), self.__allTypes())
             #for pred in knowPredicates:
@@ -76,10 +76,12 @@ class OdgiStore(Store):
             return self.__emptygen()
                      
     def __allTypes(self):
+        # This needs to return the combination of all types. For now it just does the first one :(
         for type in knownTypes:
             return self.triples((ANY, RDF.type, type))
             
     def __allPredicates(self):
+        # This needs to return the combination of all predicates. For now it just does the first one :(
         for pred in knownPredicates:
             return self.triples((ANY, pred, ANY))
             
@@ -103,20 +105,35 @@ class OdgiStore(Store):
             for handle in self.handles():
                 yield self.handleToTriples(predicate, handle)
 
-    def paths(self, predicate, object):
+    def paths(self, subject, predicate, object):
         return self.__emptygen()
 
-    def steps(self, predicate, object):
-        return self.__emptygen()
+    def steps(self, subject, predicate, object):
+        print('oi')
+        for handle in self.handles():
+            nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(handle)}')
+            for stepHandle in self.odgi.steps_of_handle(handle, False):
+                path = self.odgi.get_path_handle_of_step(handle);
+                
+                stepIri = rdflib.term.URIRef(f'{self.base}step/{self.odgi.get_id(handle)}')
+                
+                if (predicate == RDF.type):
+                    yield [(stepIri, RDF.type, VG.Node), None]
+                elif (predicate == VG.node):
+                    yield [(stepIri, VG.node, nodeIri), None]
+                
 
-    def handleToTriples(self, predicate, node):
-        
-        nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(node)}')
+    def handleToTriples(self, predicate, handle):
+        nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(handle)}')
         if (predicate == RDF.value):
-            seqValue = rdflib.term.Literal(self.odgi.get_sequence(node))
+            seqValue = rdflib.term.Literal(self.odgi.get_sequence(handle))
             return [(nodeIri, predicate, seqValue), None]
         elif (predicate == RDF.type):
             return [(nodeIri, RDF.type, VG.Node), None]
+        elif predicate == VG.linksForwardToForward:
+            # TODO: figure out what I can get  from a handle
+            return None;
+                  
     
     def handles(self):
         nodeId = self.odgi.min_node_id()

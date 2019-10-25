@@ -30,6 +30,12 @@ Finding the nodes with sequences that are longer than 5 nucleotides
 ./sparql_odgi.py  ../odgi/test/t.odgi 'PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#> SELECT ?seq WHERE {?x rdf:value ?seq . FILTER(strlen(?seq) >5)}'
 
 ```
+See more example queries in the queries directory. You can run them like this.
+
+```
+./sparql_odgi.py ../odgi/test/t.odgi "$(cat queries/selectAllSteps.rq)"
+``
+
 
 # Ideas
 
