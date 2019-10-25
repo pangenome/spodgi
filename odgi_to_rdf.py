@@ -4,10 +4,11 @@ import rdflib
 import click
 import io
 import pprint
-from rdflib.namespace import RDF
+from spodgi import OdgiStore
 
-vg = rdflib.Namespace('http://biohackathon.org/resource/vg#')
-vg.node
+from rdflib.store import Store
+from rdflib import Graph
+from rdflib import plugin
     
 
 class ToTurtle:
@@ -28,10 +29,12 @@ class ToTurtle:
 @click.argument('ttl', type=click.File('wb'))
 @click.option('--base', default='http://example.org/')
 def main(odgifile, ttl, base):
-    og = odgi.graph()
-    ogf = og.load(odgifile)
-    ogo = og.optimize(ogf)
-    og.for_each_handle(ToTurtle(og, base))
+    plugin.register('OdgiStore', Store,'spodgi.OdgiStore', 'OdgiStore')
+    spodgi = Graph(store='OdgiStore')
+    spodgi.open(odgifile, create=False)
+    res = spodgi.serialize(ttl, format='ntriples')
+    
+    spodgi.close()
     
 
 if __name__ == "__main__":

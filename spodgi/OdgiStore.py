@@ -6,9 +6,11 @@ from rdflib.namespace import RDF
 from rdflib.store import Store
 from rdflib import Graph
 from rdflib import plugin
+from itertools import chain
 VG = rdflib.Namespace('http://biohackathon.org/resource/vg#')
 
 knownTypes = [VG.Node, VG.Path, VG.Step]
+knownPredicates = [RDF.value, VG.rank, VG.offset, VG.step, VG.path]
 
 __all__ = [ 'OdgiStore' ]
 
@@ -53,7 +55,7 @@ class OdgiStore(Store):
     def triples(self, triple_pattern, context=None):
         """A generator over all the triples matching """
         subject, predicate, object = triple_pattern
-        
+        print('triples '+ str(predicate))
         if RDF.type == predicate and object != ANY:
             if not knownTypes.__contains__(object):
                 return self.__emptygen()
@@ -64,9 +66,23 @@ class OdgiStore(Store):
             elif VG.Step == object:
                 return self.steps(subject, predicate, object)
         elif RDF.value == predicate:
+            
             return self.nodes(subject, predicate, object)
+        elif subject == ANY and predicate == ANY and object == ANY:
+            return chain(self.__allPredicates(), self.__allTypes())
+            #for pred in knowPredicates:
+                #yield self.triples((ANY, pred, ANY))
+        else:
+            return self.__emptygen()
                      
-    
+    def __allTypes(self):
+        for type in knownTypes:
+            return self.triples((ANY, RDF.type, type))
+            
+    def __allPredicates(self):
+        for pred in knownPredicates:
+            return self.triples((ANY, pred, ANY))
+            
     def __emptygen(self):
         """return an empty generator"""
         if False:
@@ -94,6 +110,7 @@ class OdgiStore(Store):
         return self.__emptygen()
 
     def handleToTriples(self, predicate, node):
+        
         nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(node)}')
         if (predicate == RDF.value):
             seqValue = rdflib.term.Literal(self.odgi.get_sequence(node))
@@ -108,4 +125,7 @@ class OdgiStore(Store):
             if(self.odgi.has_node(nodeId)):
                 nodeId=nodeId+1 
                 yield self.odgi.get_handle(nodeId)
+        return
+
+    def pathHandles(self):
         return
