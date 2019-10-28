@@ -113,9 +113,9 @@ class OdgiStore(Store):
         for handle in self.handles():
             nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(handle)}')
             for stepHandle in self.odgi.steps_of_handle(handle, False):
-                path = self.odgi.get_path_handle_of_step(stepHandle);
-                
-                stepIri = rdflib.term.URIRef(f'{self.base}step/{self.odgi.get_id(handle)}')
+                path = self.odgi.get_path_handle_of_step(stepHandle)
+                pathName = self.odgi.get_path_name(path)
+                stepIri = rdflib.term.URIRef(f'{self.base}step/{pathName}-{self.odgi.get_id(handle)}')
                 
                 if (predicate == RDF.type):
                     yield [(stepIri, RDF.type, VG.Node), None]
