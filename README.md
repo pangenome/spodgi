@@ -36,6 +36,10 @@ See more example queries in the queries directory. You can run them like this.
 ./sparql_odgi.py ../odgi/test/t.odgi "$(cat queries/selectAllSteps.rq)"
 ``
 
+# Variation Graphs as RDF/semantic graphs.
+
+The modelling is following what is described in the [vg](/vgteam/vg) repository. 
+Such as in the [ontology directory](/vgteam/vg/tree/master/ontology)
 
 # Ideas
 
