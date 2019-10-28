@@ -78,12 +78,12 @@ class OdgiStore(Store):
     def __allTypes(self):
         # This needs to return the combination of all types. For now it just does the first one :(
         for type in knownTypes:
-            return self.triples((ANY, RDF.type, type))
+            yield from self.triples((ANY, RDF.type, type))
             
     def __allPredicates(self):
         # This needs to return the combination of all predicates. For now it just does the first one :(
         for pred in knownPredicates:
-            return self.triples((ANY, pred, ANY))
+            yield from self.triples((ANY, pred, ANY))
             
     def __emptygen(self):
         """return an empty generator"""
@@ -113,7 +113,7 @@ class OdgiStore(Store):
         for handle in self.handles():
             nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(handle)}')
             for stepHandle in self.odgi.steps_of_handle(handle, False):
-                path = self.odgi.get_path_handle_of_step(handle);
+                path = self.odgi.get_path_handle_of_step(stepHandle);
                 
                 stepIri = rdflib.term.URIRef(f'{self.base}step/{self.odgi.get_id(handle)}')
                 
