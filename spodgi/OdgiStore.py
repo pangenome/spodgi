@@ -16,21 +16,17 @@ __all__ = [ 'OdgiStore' ]
 
 ANY = Any = None
 
-class NodeToPattern:
-    def __init__(self, og, base, predicate):
-        self.og = og
+#This is the code that can be passed into the C++ handle graph.
+#However, my worry is how to change this so that this can be an generator
+#on the python side?
+class PathToTriples:
+    def __init__(self, og, base):
+        self.odgi = og
         self.base = base
-        self.predicate = predicate;
 
-    def __call__(self, handle):
-        nodeId = self.og.get_id(handle);
-        nodeIri = rdflib.term.URIRef(f'{self.base}node/{nodeId}')
-    
-        if (predicate == RDF.value):
-            seqValue = rdflib.term.Literal(self.og.get_sequence(handle))
-            yield [(nodeIri, predicate, seqvalue), None]
-        
-        
+    def __call__(self, pathHandle):
+        pathIri = rdflib.term.URIRef(f'{self.base}path/{self.odgi.get_path_name(pathHandle)}')
+        print([(pathIri, RDF.type, VG.Path), None])
 
 class OdgiStore(Store):
     """\
@@ -106,6 +102,9 @@ class OdgiStore(Store):
                 yield self.handleToTriples(predicate, handle)
 
     def paths(self, subject, predicate, object):
+        tt =PathToTriples(self.odgi, self.base)
+        self.odgi.for_each_path_handle(tt)
+        #return tt;
         return self.__emptygen()
 
     def steps(self, subject, predicate, object):
