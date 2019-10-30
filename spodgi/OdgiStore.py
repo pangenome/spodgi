@@ -28,19 +28,26 @@ class PathToTriples:
         self.object = object
         self.li = li;
 
+    # Generate the triples for the pathHandles that match the triple_pattern passed in
     def __call__(self, pathHandle):
         pathName = self.odgi.get_path_name(pathHandle);
         pathIri = rdflib.term.URIRef(f'{self.base}path/{pathName}')
+        # if any path is ok or this path then generate triples else skip.
         if (self.subject == ANY or self.subject == pathIri):
-            if (self.predicate == ANY or self.predicate == RDF.type):
+            #given at RDF.type and the VG.Path as object we can generate the matching triple
+            if ((self.predicate == ANY or self.predicate == RDF.type) and (self.object == ANY or self.object == VG.Path)):
                 self.li.append([(pathIri, RDF.type, VG.Path), None])
             if (self.predicate == ANY or self.predicate == RDFS.label):
                 label = rdflib.term.Literal(pathName)
-                self.li.append([(pathIri, RDFS.label, label), None])
+                # if the label does not match the object we should generate a triple here
+                if (self.object == ANY or self.object == label):
+                    self.li.append([(pathIri, RDFS.label, label), None])
 
 class OdgiStore(Store):
     """\
     An in memory implementation of an ODGI read only store.
+    
+    It used the disk based odgi/handlegraph as backing store.
     
     Authors: Jerven Bolleman
     """
@@ -72,8 +79,10 @@ class OdgiStore(Store):
                 return self.steps(subject, predicate, object)
         elif RDF.value == predicate:
             return self.nodes(subject, predicate, object)
-        elif VG.node == predicate:
+        elif VG.node == predicate :
             return self.steps(subject, VG.node, object)
+        elif VG.path == predicate :
+            return self.steps(subject, VG.path, object)
         elif RDFS.label == predicate:
             return self.paths(subject, predicate, object)
         elif subject == ANY and predicate == ANY and object == ANY:
@@ -84,12 +93,10 @@ class OdgiStore(Store):
             return self.__emptygen()
                      
     def __allTypes(self):
-        # This needs to return the combination of all types. For now it just does the first one :(
         for type in knownTypes:
             yield from self.triples((ANY, RDF.type, type))
             
     def __allPredicates(self):
-        # This needs to return the combination of all predicates. For now it just does the first one :(
         for pred in knownPredicates:
             yield from self.triples((ANY, pred, ANY))
             
@@ -126,14 +133,18 @@ class OdgiStore(Store):
             for stepHandle in self.odgi.steps_of_handle(handle, False):
                 path = self.odgi.get_path_handle_of_step(stepHandle)
                 pathName = self.odgi.get_path_name(path)
-                print(stepHandle.first())
-                print(stepHandle.second())
                 stepIri = rdflib.term.URIRef(f'{self.base}step/{pathName}-{self.odgi.get_id(handle)}')
-                
-                if (predicate == RDF.type):
-                    yield [(stepIri, RDF.type, VG.Node), None]
-                elif (predicate == VG.node):
-                    yield [(stepIri, VG.node, nodeIri), None]
+                if (subject == ANY or subject == stepIri):
+                    li = [];
+                    if (predicate == RDF.type or predicate == ANY):
+                        li.append([(stepIri, RDF.type, VG.Step), None])
+                    if (predicate == VG.node or predicate == ANY):
+                        li.append([(stepIri, VG.node, nodeIri), None])
+                    if (predicate == VG.path or predicate == ANY):
+                        pathIri = rdflib.term.URIRef(f'{self.base}path/{pathName}')
+                        li.append([(stepIri, VG.path, pathIri), None])
+                    for t in li:
+                        yield t
                 
 
     def handleToTriples(self, predicate, handle):
