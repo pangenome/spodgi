@@ -1,0 +1,8 @@
+PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>
+SELECT 
+    ?p
+    ?l 
+WHERE {
+    ?p a <http://biohackathon.org/resource/vg#Path> .
+    ?p rdfs:label ?l .
+}

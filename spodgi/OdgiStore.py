@@ -2,7 +2,7 @@
 import odgi
 import rdflib
 import io
-from rdflib.namespace import RDF
+from rdflib.namespace import RDF, RDFS
 from rdflib.store import Store
 from rdflib import Graph
 from rdflib import plugin
@@ -20,13 +20,23 @@ ANY = Any = None
 #However, my worry is how to change this so that this can be an generator
 #on the python side?
 class PathToTriples:
-    def __init__(self, og, base):
+    def __init__(self, og, base, subject, predicate, object, li):
         self.odgi = og
         self.base = base
+        self.subject = subject
+        self.predicate = predicate
+        self.object = object
+        self.li = li;
 
     def __call__(self, pathHandle):
-        pathIri = rdflib.term.URIRef(f'{self.base}path/{self.odgi.get_path_name(pathHandle)}')
-        print([(pathIri, RDF.type, VG.Path), None])
+        pathName = self.odgi.get_path_name(pathHandle);
+        pathIri = rdflib.term.URIRef(f'{self.base}path/{pathName}')
+        if (self.subject == ANY or self.subject == pathIri):
+            if (self.predicate == ANY or self.predicate == RDF.type):
+                self.li.append([(pathIri, RDF.type, VG.Path), None])
+            if (self.predicate == ANY or self.predicate == RDFS.label):
+                label = rdflib.term.Literal(pathName)
+                self.li.append([(pathIri, RDFS.label, label), None])
 
 class OdgiStore(Store):
     """\
@@ -64,6 +74,8 @@ class OdgiStore(Store):
             return self.nodes(subject, predicate, object)
         elif VG.node == predicate:
             return self.steps(subject, VG.node, object)
+        elif RDFS.label == predicate:
+            return self.paths(subject, predicate, object)
         elif subject == ANY and predicate == ANY and object == ANY:
             return chain(self.__allPredicates(), self.__allTypes())
             #for pred in knowPredicates:
@@ -102,18 +114,20 @@ class OdgiStore(Store):
                 yield self.handleToTriples(predicate, handle)
 
     def paths(self, subject, predicate, object):
-        tt =PathToTriples(self.odgi, self.base)
+        li = []
+        tt =PathToTriples(self.odgi, self.base, subject, predicate,  object, li)
         self.odgi.for_each_path_handle(tt)
-        #return tt;
-        return self.__emptygen()
+        for p in li:
+            yield p
 
     def steps(self, subject, predicate, object):
-        print('oi')
         for handle in self.handles():
             nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(handle)}')
             for stepHandle in self.odgi.steps_of_handle(handle, False):
                 path = self.odgi.get_path_handle_of_step(stepHandle)
                 pathName = self.odgi.get_path_name(path)
+                print(stepHandle.first())
+                print(stepHandle.second())
                 stepIri = rdflib.term.URIRef(f'{self.base}step/{pathName}-{self.odgi.get_id(handle)}')
                 
                 if (predicate == RDF.type):
