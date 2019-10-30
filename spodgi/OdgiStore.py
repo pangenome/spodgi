@@ -81,6 +81,8 @@ class OdgiStore(Store):
             return self.nodes(subject, predicate, object)
         elif VG.node == predicate :
             return self.steps(subject, VG.node, object)
+        elif VG.reverseOfNode == predicate :
+            return self.steps(subject, VG.reverseOfNode, object)
         elif VG.path == predicate :
             return self.steps(subject, VG.path, object)
         elif RDFS.label == predicate:
@@ -138,8 +140,10 @@ class OdgiStore(Store):
                     li = [];
                     if (predicate == RDF.type or predicate == ANY):
                         li.append([(stepIri, RDF.type, VG.Step), None])
-                    if (predicate == VG.node or predicate == ANY):
+                    if (predicate == VG.node or predicate == ANY and not self.odgi.get_is_reverse(handle)):
                         li.append([(stepIri, VG.node, nodeIri), None])
+                    if (predicate == VG.reverseOfNode or predicate == ANY and not self.odgi.get_is_reverse(handle)):
+                        li.append([(stepIri, VG.reverseOfNode, nodeIri), None])
                     if (predicate == VG.path or predicate == ANY):
                         pathIri = rdflib.term.URIRef(f'{self.base}path/{pathName}')
                         li.append([(stepIri, VG.path, pathIri), None])
