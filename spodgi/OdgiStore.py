@@ -125,9 +125,9 @@ class OdgiStore(Store):
         if subject != ANY:
             subjectIriParts = subject.toPython().split('/')
             if predicate == RDF.type and object == VG.Node and 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
-                yield [(subject, predicate, object), None]
+                yield [(subject, RDF.type, VG.Node), None]
             elif predicate == ANY and object == VG.Node and 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
-                yield [(subject, predicate, object), None]
+                yield [(subject, RDF.type, VG.Node), None]
             elif 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
                 yield from self.handleToTriples(predicate, object, self.odgi.get_handle(int(subjectIriParts[-1])))
             else:

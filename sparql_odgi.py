@@ -14,7 +14,7 @@ from rdflib import plugin
 @click.command()
 @click.argument('odgifile')
 @click.argument('sparql')
-@click.option('--base', default='http://example.org/')
+@click.option('--base', default='http://example.org/vg/')
 @click.option('--syntax', default='turtle')
 def main(odgifile, sparql, base, syntax):
     

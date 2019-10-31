@@ -27,7 +27,7 @@ class ToTurtle:
 @click.command()
 @click.argument('odgifile')
 @click.argument('ttl', type=click.File('wb'))
-@click.option('--base', default='http://example.org/')
+@click.option('--base', default='http://example.org/vg/')
 @click.option('--syntax', default='ntriples')
 def main(odgifile, ttl, base, syntax):
     plugin.register('OdgiStore', Store,'spodgi.OdgiStore', 'OdgiStore')
