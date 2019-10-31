@@ -43,6 +43,13 @@ class PathToTriples:
                 if (self.object == ANY or self.object == label):
                     self.li.append([(pathIri, RDFS.label, label), None])
 
+class CollectEdges:
+    def __init__(self, edges):
+        self.edges = edges
+        
+    def __call__(self, edgeHandle):
+        self.edges.append(edgeHandle)
+
 class OdgiStore(Store):
     """\
     An in memory implementation of an ODGI read only store.
@@ -77,7 +84,7 @@ class OdgiStore(Store):
                 return self.paths(subject, predicate, object)
             elif VG.Step == object:
                 return self.steps(subject, predicate, object)
-        elif RDF.value == predicate:
+        elif RDF.value == predicate or VG.linksForwardToForward == predicate:
             return self.nodes(subject, predicate, object)
         elif VG.node == predicate :
             return self.steps(subject, VG.node, object)
@@ -115,12 +122,14 @@ class OdgiStore(Store):
             elif predicate == ANY and object == VG.Node and 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
                 yield [(subject, predicate, object), None]
             elif 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
-                yield self.handleToTriples(predicate, self.odgi.get_handle(int(subjectIriParts[-1])))
+                yield from self.handleToTriples(predicate, object, self.odgi.get_handle(int(subjectIriParts[-1])))
             else:
                 return self.__emptygen()
         else:
             for handle in self.handles():
-                yield self.handleToTriples(predicate, handle)
+                yield from self.handleToEdgeTriples(predicate, object, handle)
+                yield from self.handleToTriples(predicate, object, handle)
+                
 
     def paths(self, subject, predicate, object):
         li = []
@@ -151,17 +160,31 @@ class OdgiStore(Store):
                         yield t
                 
 
-    def handleToTriples(self, predicate, handle):
-        nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(handle)}')
+    def handleToTriples(self, predicate, object, handle):
+        nodeIri = self.nodeIri(handle)
         if (predicate == RDF.value):
             seqValue = rdflib.term.Literal(self.odgi.get_sequence(handle))
-            return [(nodeIri, predicate, seqValue), None]
+            if (object == Any or object == seqValue):
+                yield [(nodeIri, predicate, seqValue), None]
         elif (predicate == RDF.type):
-            return [(nodeIri, RDF.type, VG.Node), None]
-        elif predicate == VG.linksForwardToForward:
-            # TODO: figure out what I can get  from a handle
-            return None;
-                  
+            if (object == Any or object == VG.Node):
+                yield [(nodeIri, RDF.type, VG.Node), None]
+            
+    def handleToEdgeTriples(self, predicate, object, handle):
+        if predicate == VG.linksForwardToForward:
+            edges = []
+            self.odgi.follow_edges(handle, True, CollectEdges(edges));
+            tr = []
+            for edge in edges:
+                nodeIri = self.nodeIri(handle)
+                otherNode = self.nodeIri(edge)
+                if (object == Any or object == nodeIri):
+                    yield ([(otherNode, VG.linksForwardToForward, nodeIri), None])
+            
+    
+    def nodeIri(self,nodeHandle):
+        return rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(nodeHandle)}')
+        
     
     def handles(self):
         nodeId = self.odgi.min_node_id()
@@ -170,7 +193,6 @@ class OdgiStore(Store):
             if(self.odgi.has_node(nodeId)):
                 nodeId=nodeId+1 
                 yield self.odgi.get_handle(nodeId)
-        return
 
     def pathHandles(self):
         return
