@@ -186,7 +186,17 @@ class OdgiStore(Store):
                 nodeIri = self.nodeIri(handle)
                 otherNode = self.nodeIri(edge)
                 if (object == Any or object == nodeIri):
-                    yield ([(nodeIri, VG.linksForwardToForward, otherNode), None])
+                    nodeIsReverse = self.odgi.get_is_reverse(handle);
+                    otherIsReverse = self.odgi.get_is_reverse(edge)
+                    #TODO: check the logic here
+                    if (predicate == ANY or VG.linksForwardToForward == ANY and not nodeIsReverse and not otherIsReverse):
+                        yield ([(nodeIri, VG.linksForwardToForward, otherNode), None])
+                    elif (predicate == ANY or VG.linksReverseToForward == ANY and nodeIsReverse and not otherIsReverse):
+                        yield ([(nodeIri, VG.linksReverseToForward, otherNode), None])
+                    elif (predicate == ANY or VG.linksReverseToReverse == ANY and nodeIsReverse and otherIsReverse):
+                        yield ([(nodeIri, VG.linksReverseToReverse, otherNode), None])
+                    elif (predicate == ANY or VG.linksReverseToReverse == ANY and not nodeIsReverse and otherIsReverse):
+                        yield ([(nodeIri, VG.linksForwardToReverse, otherNode), None])
             
     
     def nodeIri(self,nodeHandle):
