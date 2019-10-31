@@ -96,8 +96,15 @@ class OdgiStore(Store):
             return self.paths(subject, predicate, object)
         elif subject == ANY and predicate == ANY and object == ANY:
             return chain(self.__allPredicates(), self.__allTypes())
-            #for pred in knowPredicates:
-                #yield self.triples((ANY, pred, ANY))
+        elif subject != ANY:
+            subjectIriParts = subject.toPython().split('/')
+            if 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
+                handle = self.odgi.get_handle(int(subjectIriParts[-1]))
+                return  chain(self.handleToTriples(predicate, object, handle), self.handleToEdgeTriples(predicate, object, handle))
+            elif 'step' == subjectIriParts[-2]:
+                return self.steps(subject, predicate, object)
+            elif 'path' == subjectIriParts[-2]:
+                return self.paths(subject, predicate, object)
         else:
             return self.__emptygen()
                      
@@ -162,24 +169,24 @@ class OdgiStore(Store):
 
     def handleToTriples(self, predicate, object, handle):
         nodeIri = self.nodeIri(handle)
-        if (predicate == RDF.value):
+        if (predicate == RDF.value or predicate == ANY):
             seqValue = rdflib.term.Literal(self.odgi.get_sequence(handle))
             if (object == Any or object == seqValue):
-                yield [(nodeIri, predicate, seqValue), None]
-        elif (predicate == RDF.type):
+                yield [(nodeIri, RDF.value, seqValue), None]
+        elif (predicate == RDF.type or predicate == ANY):
             if (object == Any or object == VG.Node):
                 yield [(nodeIri, RDF.type, VG.Node), None]
             
     def handleToEdgeTriples(self, predicate, object, handle):
-        if predicate == VG.linksForwardToForward:
+        if predicate == VG.linksForwardToForward or predicate == ANY:
             edges = []
-            self.odgi.follow_edges(handle, True, CollectEdges(edges));
+            self.odgi.follow_edges(handle, False, CollectEdges(edges));
             tr = []
             for edge in edges:
                 nodeIri = self.nodeIri(handle)
                 otherNode = self.nodeIri(edge)
                 if (object == Any or object == nodeIri):
-                    yield ([(otherNode, VG.linksForwardToForward, nodeIri), None])
+                    yield ([(nodeIri, VG.linksForwardToForward, otherNode), None])
             
     
     def nodeIri(self,nodeHandle):
@@ -188,11 +195,12 @@ class OdgiStore(Store):
     
     def handles(self):
         nodeId = self.odgi.min_node_id()
+        
         maxNodeId = self.odgi.max_node_id()
-        while (nodeId < maxNodeId):
+        while (nodeId <= maxNodeId):
             if(self.odgi.has_node(nodeId)):
                 nodeId=nodeId+1 
-                yield self.odgi.get_handle(nodeId)
+                yield self.odgi.get_handle(nodeId-1)
 
     def pathHandles(self):
         return

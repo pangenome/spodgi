@@ -15,25 +15,30 @@ needs to be done using `odgi build -g test/t.gfa -o test/o.odgi`
 
 # Conversion to turtle
 ```
-./odgi_to_rdf.py ~/git/odgi/test/t.odgi test/t.ttl
+./odgi_to_rdf.py --syntax=ttl test/t.odgi test/t.ttl
+```
+This does not work yet. You can use the format ntriples
+
+```
+./odgi_to_rdf.py test/t.odgi -|rapper -i ntriples -o turtle -I 'http://example.org/' -
 ```
 
 # Running a SPARQL query on a ODGI
 
 ```bash
-./sparql_odgi.py  ../odgi/test/t.odgi 'ASK {<http://example.org/node/1> a <http://biohackathon.org/resource/vg#Node>}'
+./sparql_odgi.py  test/t.odgi 'ASK {<http://example.org/node/1> a <http://biohackathon.org/resource/vg#Node>}'
 ```
 
 Finding the nodes with sequences that are longer than 5 nucleotides
 
 ```bash
-./sparql_odgi.py  ../odgi/test/t.odgi 'PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#> SELECT ?seq WHERE {?x rdf:value ?seq . FILTER(strlen(?seq) >5)}'
+./sparql_odgi.py  test/t.odgi 'PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#> SELECT ?seq WHERE {?x rdf:value ?seq . FILTER(strlen(?seq) >5)}'
 
 ```
 See more example queries in the queries directory. You can run them like this.
 
 ```
-./sparql_odgi.py ../odgi/test/t.odgi "$(cat queries/selectAllSteps.rq)"
+./sparql_odgi.py test/t.odgi "$(cat queries/selectAllSteps.rq)"
 ``
 
 # Variation Graphs as RDF/semantic graphs.

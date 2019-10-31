@@ -28,11 +28,12 @@ class ToTurtle:
 @click.argument('odgifile')
 @click.argument('ttl', type=click.File('wb'))
 @click.option('--base', default='http://example.org/')
-def main(odgifile, ttl, base):
+@click.option('--syntax', default='ntriples')
+def main(odgifile, ttl, base, syntax):
     plugin.register('OdgiStore', Store,'spodgi.OdgiStore', 'OdgiStore')
     spodgi = Graph(store='OdgiStore')
     spodgi.open(odgifile, create=False)
-    res = spodgi.serialize(ttl, format='ntriples')
+    res = spodgi.serialize(ttl, syntax)
     
     spodgi.close()
     
