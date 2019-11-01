@@ -2,12 +2,13 @@
 import odgi
 import rdflib
 import io
-from rdflib.namespace import RDF, RDFS
+from rdflib.namespace import RDF, RDFS, NamespaceManager, Namespace
 from rdflib.store import Store
 from rdflib import Graph
 from rdflib import plugin
 from itertools import chain
-VG = rdflib.Namespace('http://biohackathon.org/resource/vg#')
+
+VG = Namespace('http://biohackathon.org/resource/vg#')
 
 knownTypes = [VG.Node, VG.Path, VG.Step]
 knownPredicates = [RDF.value, VG.rank, VG.offset, VG.step, VG.path, VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.reverseOfNode, VG.node]
@@ -20,9 +21,9 @@ ANY = Any = None
 #However, my worry is how to change this so that this can be an generator
 #on the python side?
 class PathToTriples:
-    def __init__(self, og, base, subject, predicate, object, li):
+    def __init__(self, og, pathNS, subject, predicate, object, li):
         self.odgi = og
-        self.base = base
+        self.pathNS = pathNS
         self.subject = subject
         self.predicate = predicate
         self.object = object
@@ -31,7 +32,7 @@ class PathToTriples:
     # Generate the triples for the pathHandles that match the triple_pattern passed in
     def __call__(self, pathHandle):
         pathName = self.odgi.get_path_name(pathHandle);
-        pathIri = rdflib.term.URIRef(f'{self.base}path/{pathName}')
+        pathIri = self.pathNS.term(f'{pathName}')
         # if any path is ok or this path then generate triples else skip.
         if (self.subject == ANY or self.subject == pathIri):
             #given at RDF.type and the VG.Path as object we can generate the matching triple
@@ -61,18 +62,20 @@ class OdgiStore(Store):
     
     def __init__(self, configuration=None, identifier=None, base=None):
         super(OdgiStore, self).__init__(configuration)
-        self.__namespace = {}
-        self.__prefix = {}
+        self.namespace_manager = NamespaceManager(Graph())
+        self.bind('vg', VG)
         self.identifier = identifier
         self.configuration = configuration
         if base == None:
             self.base = 'http://example.org/vg/'
         else:
             self.base = base
-        self.bind('node', f'{self.base}node/')
-        self.bind('path', f'{self.base}path/')
-        self.bind('step', f'{self.base}step/')
-        self.bind('vg', VG)
+        self.nodeNS = Namespace(f'{self.base}node/')
+        self.pathNS = Namespace(f'{self.base}path/')
+        self.stepNS = Namespace(f'{self.base}step/')
+        self.bind('node', self.nodeNS)
+        self.bind('path', self.pathNS)
+        self.bind('step', self.stepNS)
         
     def open(self, odgifile, create=False):
         og = odgi.graph()
@@ -147,18 +150,18 @@ class OdgiStore(Store):
 
     def paths(self, subject, predicate, object):
         li = []
-        tt =PathToTriples(self.odgi, self.base, subject, predicate,  object, li)
+        tt =PathToTriples(self.odgi, self.pathNS, subject, predicate,  object, li)
         self.odgi.for_each_path_handle(tt)
         for p in li:
             yield p
 
     def steps(self, subject, predicate, object):
         for handle in self.handles():
-            nodeIri = rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(handle)}')
+            nodeIri = self.nodeIri(handle)
             for stepHandle in self.odgi.steps_of_handle(handle, False):
                 path = self.odgi.get_path_handle_of_step(stepHandle)
                 pathName = self.odgi.get_path_name(path)
-                stepIri = rdflib.term.URIRef(f'{self.base}step/{pathName}-{self.odgi.get_id(handle)}')
+                stepIri = self.stepNS.term(f'{pathName}-{self.odgi.get_id(handle)}')
                 if (subject == ANY or subject == stepIri):
                     li = [];
                     if (predicate == RDF.type or predicate == ANY):
@@ -168,7 +171,7 @@ class OdgiStore(Store):
                     if (predicate == VG.reverseOfNode or predicate == ANY and self.odgi.get_is_reverse(handle)):
                         li.append([(stepIri, VG.reverseOfNode, nodeIri), None])
                     if (predicate == VG.path or predicate == ANY):
-                        pathIri = rdflib.term.URIRef(f'{self.base}path/{pathName}')
+                        pathIri = self.pathNS.term(f'{pathName}')
                         li.append([(stepIri, VG.path, pathIri), None])
                     for t in li:
                         yield t
@@ -205,23 +208,24 @@ class OdgiStore(Store):
                         yield ([(nodeIri, VG.linksForwardToReverse, otherNode), None])
    
     def bind(self, prefix, namespace):
-        self.__prefix[namespace] = prefix
-        self.__namespace[prefix] = namespace
+        self.namespace_manager.bind(prefix, namespace)
 
-    def namespace(self, prefix):
-        return self.__namespace.get(prefix, None)
+    def namespace(self, searchPrefix):
+        for prefix, namespace in self.namespace_manager.namespaces():
+            if searchPrefix == prefix:
+                return namespace
 
-    def prefix(self, namespace):
-        return self.__prefix.get(namespace, None)
+    def prefix(self, searchNamespace):
+        for prefix, namespace in self.namespace_manager.namespaces():
+            if searchNamespace == namespace:
+                return prefix
 
     def namespaces(self):
-        
-        for prefix in self.__namespace:
-            yield prefix, self.__namespace[prefix]
+        return self.namespace_manager.namespaces()
     
     
-    def nodeIri(self,nodeHandle):
-        return rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(nodeHandle)}')
+    def nodeIri(self, nodeHandle):
+        return self.nodeNS.term(f'{self.odgi.get_id(nodeHandle)}')
         
     
     def handles(self):
