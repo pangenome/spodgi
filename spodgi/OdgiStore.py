@@ -133,12 +133,12 @@ class OdgiStore(Store):
  
     def nodes(self, subject, predicate, object):
         if subject != ANY:
-            subjectIriParts = subject.toPython().split('/')
-            if predicate == RDF.type and object == VG.Node and 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
+            isNodeIri = self.isNodeIriInGraph(subject)
+            if predicate == RDF.type and object == VG.Node and isNodeIri:
                 yield [(subject, RDF.type, VG.Node), None]
-            elif predicate == ANY and object == VG.Node and 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
+            elif predicate == ANY and object == VG.Node and isNodeIri:
                 yield [(subject, RDF.type, VG.Node), None]
-            elif 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
+            elif isNodeIri:
                 yield from self.handleToTriples(predicate, object, self.odgi.get_handle(int(subjectIriParts[-1])))
             else:
                 return self.__emptygen()
@@ -146,7 +146,10 @@ class OdgiStore(Store):
             for handle in self.handles():
                 yield from self.handleToEdgeTriples(predicate, object, handle)
                 yield from self.handleToTriples(predicate, object, handle)
-                
+
+    def isNodeIriInGraph(self, iri):
+        iriParts = iri.toPython().split('/')
+        return 'node' == iriParts[-2] and self.odgi.has_node(int(iriParts[-1]))
 
     def paths(self, subject, predicate, object):
         li = []
@@ -190,9 +193,8 @@ class OdgiStore(Store):
         if predicate == VG.linksForwardToForward or predicate == ANY:
             edges = []
             self.odgi.follow_edges(handle, False, CollectEdges(edges));
-            tr = []
+            nodeIri = self.nodeIri(handle)
             for edge in edges:
-                nodeIri = self.nodeIri(handle)
                 otherNode = self.nodeIri(edge)
                 if (object == Any or object == otherIri):
                     nodeIsReverse = self.odgi.get_is_reverse(handle);
