@@ -225,7 +225,8 @@ class OdgiStore(Store):
     def namespaces(self):
         return self.namespace_manager.namespaces()
     
-    
+    # This does not make a big difference as numeric local names 
+    # are not turned into nice looking shortcuts in turtle 
     def nodeIri(self, nodeHandle):
         return self.nodeNS.term(f'{self.odgi.get_id(nodeHandle)}')
         

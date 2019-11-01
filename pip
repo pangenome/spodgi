@@ -1,2 +1,3 @@
 pip3 install --user rdflib
 pip3 install --user click
+pip3 install --user pytest
