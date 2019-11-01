@@ -1,5 +1,7 @@
 # spodgi
-RDF and SPARQL ideas to build on top of [vgteam/odgi](https://github.com/vgteam/odgi)
+Use a general graph query language SPARQL to invetigate genome variation graphs!
+
+Currently it exposes read only any [Odgi](https://github.com/vgteam/odgi) genome variation graph as SPARQL a W3C standard query language. 
 
 # Example
 
