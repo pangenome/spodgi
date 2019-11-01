@@ -10,7 +10,7 @@ from itertools import chain
 VG = rdflib.Namespace('http://biohackathon.org/resource/vg#')
 
 knownTypes = [VG.Node, VG.Path, VG.Step]
-knownPredicates = [RDF.value, VG.rank, VG.offset, VG.step, VG.path, VG.linksForwardToForward, VG.node]
+knownPredicates = [RDF.value, VG.rank, VG.offset, VG.step, VG.path, VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.reverseOfNode, VG.node]
 
 __all__ = [ 'OdgiStore' ]
 
