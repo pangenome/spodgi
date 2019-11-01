@@ -41,7 +41,7 @@ See more example queries in the queries directory. You can run them like this.
 
 ```
 ./sparql_odgi.py test/t.odgi "$(cat queries/selectAllSteps.rq)"
-``
+```
 
 # Variation Graphs as RDF/semantic graphs.
 
