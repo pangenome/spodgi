@@ -19,7 +19,8 @@ from rdflib import plugin
 def main(odgifile, sparql, base, syntax):
     
     plugin.register('OdgiStore', Store,'spodgi.OdgiStore', 'OdgiStore')
-    spodgi = Graph(store='OdgiStore')
+    s = plugin.get('OdgiStore', Store)(base=base)
+    spodgi = Graph(store=s)
     spodgi.open(odgifile, create=False)
     res = spodgi.query(sparql)
     

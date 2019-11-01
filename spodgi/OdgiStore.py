@@ -59,16 +59,20 @@ class OdgiStore(Store):
     Authors: Jerven Bolleman
     """
     
-    def __init__(self, configuration=None, identifier=None):
+    def __init__(self, configuration=None, identifier=None, base=None):
         super(OdgiStore, self).__init__(configuration)
         self.__namespace = {}
         self.__prefix = {}
         self.identifier = identifier
-        if not configuration == None:
-            self.base = configuration.base
+        self.configuration = configuration
+        if base == None:
+            self.base = 'http://example.org/vg/'
         else:
-            self.base = 'http://example.org/'
-      
+            self.base = base
+        self.bind('node', f'{self.base}node/')
+        self.bind('path', f'{self.base}path/')
+        self.bind('step', f'{self.base}step/')
+        self.bind('vg', VG)
         
     def open(self, odgifile, create=False):
         og = odgi.graph()
@@ -161,7 +165,7 @@ class OdgiStore(Store):
                         li.append([(stepIri, RDF.type, VG.Step), None])
                     if (predicate == VG.node or predicate == ANY and not self.odgi.get_is_reverse(handle)):
                         li.append([(stepIri, VG.node, nodeIri), None])
-                    if (predicate == VG.reverseOfNode or predicate == ANY and not self.odgi.get_is_reverse(handle)):
+                    if (predicate == VG.reverseOfNode or predicate == ANY and self.odgi.get_is_reverse(handle)):
                         li.append([(stepIri, VG.reverseOfNode, nodeIri), None])
                     if (predicate == VG.path or predicate == ANY):
                         pathIri = rdflib.term.URIRef(f'{self.base}path/{pathName}')
@@ -176,8 +180,7 @@ class OdgiStore(Store):
             seqValue = rdflib.term.Literal(self.odgi.get_sequence(handle))
             if (object == Any or object == seqValue):
                 yield [(nodeIri, RDF.value, seqValue), None]
-        elif (predicate == RDF.type or predicate == ANY):
-            if (object == Any or object == VG.Node):
+        elif (predicate == RDF.type or predicate == ANY) and (object == Any or object == VG.Node):
                 yield [(nodeIri, RDF.type, VG.Node), None]
             
     def handleToEdgeTriples(self, predicate, object, handle):
@@ -188,7 +191,7 @@ class OdgiStore(Store):
             for edge in edges:
                 nodeIri = self.nodeIri(handle)
                 otherNode = self.nodeIri(edge)
-                if (object == Any or object == nodeIri):
+                if (object == Any or object == otherIri):
                     nodeIsReverse = self.odgi.get_is_reverse(handle);
                     otherIsReverse = self.odgi.get_is_reverse(edge)
                     #TODO: check the logic here

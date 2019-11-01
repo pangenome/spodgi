@@ -16,7 +16,8 @@ from rdflib import plugin
 @click.option('--syntax', default='ntriples')
 def main(odgifile, ttl, base, syntax):
     plugin.register('OdgiStore', Store,'spodgi.OdgiStore', 'OdgiStore')
-    spodgi = Graph(store='OdgiStore')
+    store=plugin.get('OdgiStore', Store)(base=base)
+    spodgi = Graph(store=store)
     spodgi.open(odgifile, create=False)
     res = spodgi.serialize(ttl, syntax)
     spodgi.close()
