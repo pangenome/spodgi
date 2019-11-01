@@ -16,16 +16,15 @@ You need to have an odgi file. So conversion from GFA
 needs to be done using `odgi build -g test/t.gfa -o test/o.odgi`
 
 # Conversion to turtle
+
 ```
 ./odgi_to_rdf.py --syntax=ttl test/t.odgi test/t.ttl
 ```
-This does not work yet. You can use the format ntriples
+This makes the same kind of turtle as done by the `vg view -t` code.
+However, it adds more `rdf:type` statements and may not have `vg:rank` and `vg:position`
+as these values are not stored in an Odgi file. 
 
-```
-./odgi_to_rdf.py test/t.odgi -|rapper -i ntriples -o turtle -I 'http://example.org/' -
-```
-
-# Running a SPARQL query on a ODGI
+# Running a SPARQL query on a Odgi
 
 ```bash
 ./sparql_odgi.py  test/t.odgi 'ASK {<http://example.org/node/1> a <http://biohackathon.org/resource/vg#Node>}'
@@ -57,6 +56,8 @@ The end state is to translate SPARQL queries directly via the RDFLib engine to o
 # Help wanted
 
 This is a hobby for me, but could be very useful for others so please join and hack on this ;)
+
+I am escpecially in need of current best practices for packaging and testing.
 
 # Methods in ODGI
 

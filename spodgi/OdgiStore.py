@@ -61,11 +61,14 @@ class OdgiStore(Store):
     
     def __init__(self, configuration=None, identifier=None):
         super(OdgiStore, self).__init__(configuration)
+        self.__namespace = {}
+        self.__prefix = {}
         self.identifier = identifier
         if not configuration == None:
             self.base = configuration.base
         else:
             self.base = 'http://example.org/'
+      
         
     def open(self, odgifile, create=False):
         og = odgi.graph()
@@ -197,7 +200,22 @@ class OdgiStore(Store):
                         yield ([(nodeIri, VG.linksReverseToReverse, otherNode), None])
                     elif (predicate == ANY or VG.linksReverseToReverse == ANY and not nodeIsReverse and otherIsReverse):
                         yield ([(nodeIri, VG.linksForwardToReverse, otherNode), None])
-            
+   
+    def bind(self, prefix, namespace):
+        self.__prefix[namespace] = prefix
+        self.__namespace[prefix] = namespace
+
+    def namespace(self, prefix):
+        return self.__namespace.get(prefix, None)
+
+    def prefix(self, namespace):
+        return self.__prefix.get(namespace, None)
+
+    def namespaces(self):
+        
+        for prefix in self.__namespace:
+            yield prefix, self.__namespace[prefix]
+    
     
     def nodeIri(self,nodeHandle):
         return rdflib.term.URIRef(f'{self.base}node/{self.odgi.get_id(nodeHandle)}')
