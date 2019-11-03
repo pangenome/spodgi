@@ -52,6 +52,7 @@ class CollectEdges:
         self.edges.append(edgeHandle)
 
 class OdgiStore(Store):
+    
     """\
     An in memory implementation of an ODGI read only store.
     
@@ -164,7 +165,7 @@ class OdgiStore(Store):
             for stepHandle in self.odgi.steps_of_handle(handle, False):
                 path = self.odgi.get_path_handle_of_step(stepHandle)
                 pathName = self.odgi.get_path_name(path)
-                stepIri = self.stepNS.term(f'{pathName}-{self.odgi.get_id(handle)}')
+                stepIri = rdflib.URIRef(f'{pathName}-{self.odgi.get_id(handle)}', self.stepNS)
                 if (subject == ANY or subject == stepIri):
                     li = [];
                     if (predicate == RDF.type or predicate == ANY):
@@ -228,7 +229,7 @@ class OdgiStore(Store):
     # This does not make a big difference as numeric local names 
     # are not turned into nice looking shortcuts in turtle 
     def nodeIri(self, nodeHandle):
-        return self.nodeNS.term(f'{self.odgi.get_id(nodeHandle)}')
+        return NodeIriRef(nodeHandle, self.nodeNS, self.odgi)
         
     
     def handles(self):
@@ -242,3 +243,47 @@ class OdgiStore(Store):
 
     def pathHandles(self):
         return
+    
+class NodeIriRef(rdflib.term.Identifier):
+    __slots__ = ("_nodeHandle", "_base", "_odgi")
+    
+    def __new__(cls, nodeHandle, base, odgi):
+         inst =  str.__new__(cls)
+         inst._nodeHandle = nodeHandle
+         inst._base = base
+         inst._odgi = odgi
+         return inst
+      
+    def __eq__(self, other):
+        if type(self) == type(other):
+            return self._nodeHandle == other._nodeHandle and self._base == other._base
+        elif (type(other) == rdflib.URIRef):
+            return rdflib.URIRef(self.unicode()) == other
+        else:
+            return False
+                
+    def __gt__(self, other):
+        if other is None:
+            return True  # everything bigger than None
+        elif type(self) == type(other):
+            if (self._base > other._base):
+                return True
+            elif (self._base < other._base):
+                return False
+            else:
+                return self._odgi.get_id(self._nodeHandle) > self._odgi.get_id(other._nodeHandle)
+            
+    def n3(self, namespace_manager = None):
+        if namespace_manager:
+            return namespace_manager.normalizeUri(self)
+        else:
+            return f'<{self.unicode()}>'
+    
+    def toPython(self):
+        return self.unicode()
+        
+    def unicode(self):
+        return f'{self._base}{self._odgi.get_id(self._nodeHandle)}'
+    
+    def __hash__(self):
+        return self._odgi.get_id(self._nodeHandle)
