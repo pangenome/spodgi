@@ -12,6 +12,7 @@ VG = Namespace('http://biohackathon.org/resource/vg#')
 
 knownTypes = [VG.Node, VG.Path, VG.Step]
 knownPredicates = [RDF.value, VG.rank, VG.offset, VG.step, VG.path, VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.reverseOfNode, VG.node]
+linkPredicates = [VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse]
 
 __all__ = [ 'OdgiStore' ]
 
@@ -167,18 +168,15 @@ class OdgiStore(Store):
                 pathName = self.odgi.get_path_name(path)
                 stepIri = rdflib.URIRef(f'{pathName}-{self.odgi.get_id(handle)}', self.stepNS)
                 if (subject == ANY or subject == stepIri):
-                    li = [];
                     if (predicate == RDF.type or predicate == ANY):
-                        li.append([(stepIri, RDF.type, VG.Step), None])
+                        yield ([(stepIri, RDF.type, VG.Step), None])
                     if (predicate == VG.node or predicate == ANY and not self.odgi.get_is_reverse(handle)):
-                        li.append([(stepIri, VG.node, nodeIri), None])
+                        yield ([(stepIri, VG.node, nodeIri), None])
                     if (predicate == VG.reverseOfNode or predicate == ANY and self.odgi.get_is_reverse(handle)):
-                        li.append([(stepIri, VG.reverseOfNode, nodeIri), None])
+                        yield ([(stepIri, VG.reverseOfNode, nodeIri), None])
                     if (predicate == VG.path or predicate == ANY):
                         pathIri = self.pathNS.term(f'{pathName}')
-                        li.append([(stepIri, VG.path, pathIri), None])
-                    for t in li:
-                        yield t
+                        yield ([(stepIri, VG.path, pathIri), None])
                 
 
     def handleToTriples(self, predicate, object, handle):
@@ -188,10 +186,10 @@ class OdgiStore(Store):
             if (object == Any or object == seqValue):
                 yield [(nodeIri, RDF.value, seqValue), None]
         elif (predicate == RDF.type or predicate == ANY) and (object == Any or object == VG.Node):
-                yield [(nodeIri, RDF.type, VG.Node), None]
+            yield [(nodeIri, RDF.type, VG.Node), None]
             
     def handleToEdgeTriples(self, predicate, object, handle):
-        if predicate == VG.linksForwardToForward or predicate == ANY:
+        if predicate == ANY or linkPredicates.__contains__(predicate):
             edges = []
             self.odgi.follow_edges(handle, False, CollectEdges(edges));
             nodeIri = self.nodeIri(handle)
