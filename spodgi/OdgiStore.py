@@ -22,12 +22,12 @@ ANY = Any = None
 #However, my worry is how to change this so that this can be an generator
 #on the python side?
 class PathToTriples:
-    def __init__(self, og, pathNS, subject, predicate, object, li):
+    def __init__(self, og, pathNS, subject, predicate, obj, li):
         self.odgi = og
         self.pathNS = pathNS
         self.subject = subject
         self.predicate = predicate
-        self.object = object
+        self.obj = obj
         self.li = li;
 
     # Generate the triples for the pathHandles that match the triple_pattern passed in
@@ -36,13 +36,13 @@ class PathToTriples:
         pathIri = self.pathNS.term(f'{pathName}')
         # if any path is ok or this path then generate triples else skip.
         if (self.subject == ANY or self.subject == pathIri):
-            #given at RDF.type and the VG.Path as object we can generate the matching triple
-            if ((self.predicate == ANY or self.predicate == RDF.type) and (self.object == ANY or self.object == VG.Path)):
+            #given at RDF.type and the VG.Path as obj we can generate the matching triple
+            if ((self.predicate == ANY or self.predicate == RDF.type) and (self.obj == ANY or self.obj == VG.Path)):
                 self.li.append([(pathIri, RDF.type, VG.Path), None])
             if (self.predicate == ANY or self.predicate == RDFS.label):
                 label = rdflib.term.Literal(pathName)
-                # if the label does not match the object we should generate a triple here
-                if (self.object == ANY or self.object == label):
+                # if the label does not match the obj we should generate a triple here
+                if (self.obj == ANY or self.obj == label):
                     self.li.append([(pathIri, RDFS.label, label), None])
 
 class CollectEdges:
@@ -86,37 +86,37 @@ class OdgiStore(Store):
 
     def triples(self, triple_pattern, context=None):
         """A generator over all the triples matching """
-        subject, predicate, object = triple_pattern
-        if RDF.type == predicate and object != ANY:
-            if not knownTypes.__contains__(object):
+        subject, predicate, obj = triple_pattern
+        if RDF.type == predicate and obj != ANY:
+            if not knownTypes.__contains__(obj):
                 return self.__emptygen()
-            elif VG.Node == object:
-                return self.nodes(subject, predicate, object)
-            elif VG.Path == object:
-                return self.paths(subject, predicate, object)
-            elif VG.Step == object:
-                return self.steps(subject, predicate, object)
+            elif VG.Node == obj:
+                return self.nodes(subject, predicate, obj)
+            elif VG.Path == obj:
+                return self.paths(subject, predicate, obj)
+            elif VG.Step == obj:
+                return self.steps(subject, predicate, obj)
         elif RDF.value == predicate or VG.linksForwardToForward == predicate:
-            return self.nodes(subject, predicate, object)
+            return self.nodes(subject, predicate, obj)
         elif VG.node == predicate :
-            return self.steps(subject, VG.node, object)
+            return self.steps(subject, VG.node, obj)
         elif VG.reverseOfNode == predicate :
-            return self.steps(subject, VG.reverseOfNode, object)
+            return self.steps(subject, VG.reverseOfNode, obj)
         elif VG.path == predicate :
-            return self.steps(subject, VG.path, object)
+            return self.steps(subject, VG.path, obj)
         elif RDFS.label == predicate:
-            return self.paths(subject, predicate, object)
-        elif subject == ANY and predicate == ANY and object == ANY:
+            return self.paths(subject, predicate, obj)
+        elif subject == ANY and predicate == ANY and obj == ANY:
             return chain(self.__allPredicates(), self.__allTypes())
         elif subject != ANY:
             subjectIriParts = subject.toPython().split('/')
             if 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
                 handle = self.odgi.get_handle(int(subjectIriParts[-1]))
-                return  chain(self.handleToTriples(predicate, object, handle), self.handleToEdgeTriples(predicate, object, handle))
+                return  chain(self.handleToTriples(predicate, obj, handle), self.handleToEdgeTriples(predicate, obj, handle))
             elif 'step' == subjectIriParts[-2]:
-                return self.steps(subject, predicate, object)
+                return self.steps(subject, predicate, obj)
             elif 'path' == subjectIriParts[-2]:
-                return self.paths(subject, predicate, object)
+                return self.paths(subject, predicate, obj)
         else:
             return self.__emptygen()
                      
@@ -133,69 +133,74 @@ class OdgiStore(Store):
         if False:
             yield
  
-    def nodes(self, subject, predicate, object):
+    def nodes(self, subject, predicate, obj):
         if subject != ANY:
             isNodeIri = self.isNodeIriInGraph(subject)
-            if predicate == RDF.type and object == VG.Node and isNodeIri:
+            if predicate == RDF.type and obj == VG.Node and isNodeIri:
                 yield [(subject, RDF.type, VG.Node), None]
-            elif predicate == ANY and object == VG.Node and isNodeIri:
+            elif predicate == ANY and obj == VG.Node and isNodeIri:
                 yield [(subject, RDF.type, VG.Node), None]
             elif isNodeIri:
-                yield from self.handleToTriples(predicate, object, self.odgi.get_handle(int(subjectIriParts[-1])))
+                yield from self.handleToTriples(predicate, obj, self.odgi.get_handle(int(subjectIriParts[-1])))
             else:
                 return self.__emptygen()
         else:
             for handle in self.handles():
-                yield from self.handleToEdgeTriples(predicate, object, handle)
-                yield from self.handleToTriples(predicate, object, handle)
+                yield from self.handleToEdgeTriples(predicate, obj, handle)
+                yield from self.handleToTriples(predicate, obj, handle)
 
     def isNodeIriInGraph(self, iri):
         iriParts = iri.toPython().split('/')
         return 'node' == iriParts[-2] and self.odgi.has_node(int(iriParts[-1]))
 
-    def paths(self, subject, predicate, object):
+    def paths(self, subject, predicate, obj):
         li = []
-        tt =PathToTriples(self.odgi, self.pathNS, subject, predicate,  object, li)
+        tt =PathToTriples(self.odgi, self.pathNS, subject, predicate,  obj, li)
         self.odgi.for_each_path_handle(tt)
         for p in li:
             yield p
 
-    def steps(self, subject, predicate, object):
-        for handle in self.handles():
-            nodeIri = self.nodeIri(handle)
-            for stepHandle in self.odgi.steps_of_handle(handle, False):
-                path = self.odgi.get_path_handle_of_step(stepHandle)
-                pathName = self.odgi.get_path_name(path)
-                stepIri = rdflib.URIRef(f'{pathName}-{self.odgi.get_id(handle)}', self.stepNS)
-                if (subject == ANY or subject == stepIri):
-                    if (predicate == RDF.type or predicate == ANY):
-                        yield ([(stepIri, RDF.type, VG.Step), None])
-                    if (predicate == VG.node or predicate == ANY and not self.odgi.get_is_reverse(handle)):
-                        yield ([(stepIri, VG.node, nodeIri), None])
-                    if (predicate == VG.reverseOfNode or predicate == ANY and self.odgi.get_is_reverse(handle)):
-                        yield ([(stepIri, VG.reverseOfNode, nodeIri), None])
-                    if (predicate == VG.path or predicate == ANY):
-                        pathIri = self.pathNS.term(f'{pathName}')
-                        yield ([(stepIri, VG.path, pathIri), None])
+    def steps(self, subject, predicate, obj):
+        for nodeHandle in self.handles():
+            for stepHandle in self.odgi.steps_of_handle(nodeHandle, False):
+                yield from self.stepHandleToTriples(stepHandle, nodeHandle, subject, predicate, obj)
+    
+    def stepHandleToTriples(self, stepHandle, nodeHandle, subject, predicate, obj):
+        path = self.odgi.get_path_handle_of_step(stepHandle)
+        pathName = self.odgi.get_path_name(path)
+        stepIri = rdflib.URIRef(f'{pathName}-{self.odgi.get_id(nodeHandle)}', self.stepNS)
+        if (subject == ANY or subject == stepIri):
+            if (predicate == RDF.type or predicate == ANY) and (obj == ANY or obj == VG.Step):
+                yield ([(stepIri, RDF.type, VG.Step), None])
+            nodeIri = self.nodeIri(nodeHandle)
+            if (predicate == VG.node or predicate == ANY and not self.odgi.get_is_reverse(nodeHandle)) and (obj == ANY or obj == nodeIri):
                 
+                yield ([(stepIri, VG.node, nodeIri), None])
+            if (predicate == VG.reverseOfNode or predicate == ANY and self.odgi.get_is_reverse(nodeHandle)) and (obj == ANY or obj == nodeIri):
+                nodeIri = self.nodeIri(nodeHandle)
+                yield ([(stepIri, VG.reverseOfNode, nodeIri), None])
+            if (predicate == VG.path or predicate == ANY):
+                pathIri = self.pathNS.term(f'{pathName}')
+                if obj ==Any or obj == pathIri:
+                    yield ([(stepIri, VG.path, pathIri), None])
 
-    def handleToTriples(self, predicate, object, handle):
+    def handleToTriples(self, predicate, obj, handle):
         nodeIri = self.nodeIri(handle)
         if (predicate == RDF.value or predicate == ANY):
             seqValue = rdflib.term.Literal(self.odgi.get_sequence(handle))
-            if (object == Any or object == seqValue):
+            if (obj == Any or obj == seqValue):
                 yield [(nodeIri, RDF.value, seqValue), None]
-        elif (predicate == RDF.type or predicate == ANY) and (object == Any or object == VG.Node):
+        elif (predicate == RDF.type or predicate == ANY) and (obj == Any or obj == VG.Node):
             yield [(nodeIri, RDF.type, VG.Node), None]
             
-    def handleToEdgeTriples(self, predicate, object, handle):
+    def handleToEdgeTriples(self, predicate, obj, handle):
         if predicate == ANY or linkPredicates.__contains__(predicate):
             edges = []
             self.odgi.follow_edges(handle, False, CollectEdges(edges));
             nodeIri = self.nodeIri(handle)
             for edge in edges:
                 otherNode = self.nodeIri(edge)
-                if (object == Any or object == otherIri):
+                if (obj == Any or obj == otherIri):
                     nodeIsReverse = self.odgi.get_is_reverse(handle);
                     otherIsReverse = self.odgi.get_is_reverse(edge)
                     #TODO: check the logic here

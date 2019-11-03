@@ -6,7 +6,7 @@ from rdflib.namespace import RDF
 from rdflib.store import Store
 from rdflib import Graph
 from rdflib import plugin
-
+from rdflib.collection import Collection
 
 def test_open_odgi():
     plugin.register('OdgiStore', Store,'spodgi.OdgiStore', 'OdgiStore')
@@ -24,4 +24,12 @@ def test_open_odgi():
     spodgi.close()
 
 def test_count_all():
+    plugin.register('OdgiStore', Store,'spodgi.OdgiStore', 'OdgiStore')
+    s = plugin.get('OdgiStore', Store)(base="http://example.org/test/")
+    spodgi = Graph(store=s)
+    spodgi.open('./test/t.odgi', create=False)
+    for r in spodgi.query('SELECT (count(*) as ?count) WHERE {?s ?p ?o}'):
+        assert r[0].value == 71
+        
+    spodgi.close()
     assert True
