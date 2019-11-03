@@ -121,7 +121,7 @@ class OdgiStore(Store):
             if 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
                 handle = self.odgi.get_handle(int(subjectIriParts[-1]))
                 return  chain(self.handleToTriples(predicate, obj, handle), self.handleToEdgeTriples(predicate, obj, handle))
-            elif 'step' == subjectIriParts[-2]:
+            elif 'path' == subjectIriParts[-4] and 'step' == subjectIriParts[-2]:
                 return self.steps(subject, predicate, obj)
             elif 'path' == subjectIriParts[-2]:
                 return self.paths(subject, predicate, obj)
@@ -170,27 +170,44 @@ class OdgiStore(Store):
 
     def steps(self, subject, predicate, obj):
         if (subject == Any):
-
             for pathHandle in self.pathHandles():
-                rank=1
-                stepHandle = self.odgi.path_begin(pathHandle)
-                nodeHandle = self.odgi.get_handle_of_step(stepHandle)
-                yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle, rank=rank)
-                
-                while self.odgi.has_next_step(stepHandle):
-                    stepHandle = self.odgi.get_next_step(stepHandle)
+                if not self.odgi.is_empty(pathHandle):
+                    rank=1
+                    stepHandle = self.odgi.path_begin(pathHandle)
                     nodeHandle = self.odgi.get_handle_of_step(stepHandle)
-                    rank = rank + 1
                     yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle, rank=rank)
+                    
+                    while self.odgi.has_next_step(stepHandle):
+                        stepHandle = self.odgi.get_next_step(stepHandle)
+                        nodeHandle = self.odgi.get_handle_of_step(stepHandle)
+                        rank = rank + 1
+                        yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle, rank=rank)
         else:
-            for nodeHandle in self.handles():
-                for stepHandle in self.odgi.steps_of_handle(nodeHandle, False):
-                    yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle)
+            subjectIriParts = subject.toPython().split('/')
+            if 'path' == subjectIriParts[-4] and 'step' == subjectIriParts[-2]:
+                pathName = subjectIriParts[-3];
+                pathHandle = self.odgi.get_path_handle(pathName)
+                stepRank = int(subjectIriParts[-1]);
+                if not self.odgi.is_empty(pathHandle):
+                    rank=1
+                    stepHandle = self.odgi.path_begin(pathHandle)
+                    while rank != stepRank and self.odgi.has_next_step(stepHandle):
+                        rank = rank +1
+                        stepHandle = self.odgi.get_next_step(stepHandle)
+                    nodeHandle = self.odgi.get_handle_of_step(stepHandle)
+                    yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle, rank=rank)
+                        
+                    
+                    
+    #else:
+            #for nodeHandle in self.handles():
+                #for stepHandle in self.odgi.steps_of_handle(nodeHandle, False):
+                    #yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle)
     
     def stepHandleToTriples(self, stepHandle, subject, predicate, obj, nodeHandle=None, rank=None):
         path = self.odgi.get_path_handle_of_step(stepHandle)
         pathName = self.odgi.get_path_name(path)
-        stepIri = rdflib.URIRef(f'{pathName}-{self.odgi.get_id(nodeHandle)}', self.stepNS)
+        stepIri = rdflib.URIRef(f'path/{pathName}/step/{rank}', self.base)
         if (subject == ANY or subject == stepIri):
             if (predicate == RDF.type or predicate == ANY) and (obj == ANY or obj == VG.Step):
                 yield ([(stepIri, RDF.type, VG.Step), None])

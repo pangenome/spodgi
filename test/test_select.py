@@ -33,3 +33,14 @@ def test_count_all():
         
     spodgi.close()
     assert True
+
+def test_select_specific_step():
+    plugin.register('OdgiStore', Store,'spodgi.OdgiStore', 'OdgiStore')
+    s = plugin.get('OdgiStore', Store)(base="http://example.org/test/")
+    spodgi = Graph(store=s)
+    spodgi.open('./test/t.odgi', create=False)
+    for r in spodgi.query('SELECT ?step ?rank WHERE {<path/x/step/2> <http://biohackathon.org/resource/VG#rank> 2}'):
+        assert r[1].value == 2
+        
+    spodgi.close()
+    assert True
