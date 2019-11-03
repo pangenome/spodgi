@@ -4,6 +4,7 @@ import rdflib
 import io
 from rdflib.namespace import RDF, RDFS, NamespaceManager, Namespace
 from rdflib.store import Store
+from rdflib.term import Literal
 from rdflib import Graph
 from rdflib import plugin
 from itertools import chain
@@ -51,6 +52,13 @@ class CollectEdges:
         
     def __call__(self, edgeHandle):
         self.edges.append(edgeHandle)
+        
+class CollectPaths:
+    def __init__(self, paths):
+        self.paths = paths
+        
+    def __call__(self, pathHandle):
+        self.paths.append(pathHandle)
 
 class OdgiStore(Store):
     
@@ -96,10 +104,10 @@ class OdgiStore(Store):
                 return self.paths(subject, predicate, obj)
             elif VG.Step == obj:
                 return self.steps(subject, predicate, obj)
-        elif RDF.value == predicate or VG.linksForwardToForward == predicate:
+        elif RDF.value == predicate or linkPredicates.__contains__(predicate):
             return self.nodes(subject, predicate, obj)
-        elif VG.node == predicate :
-            return self.steps(subject, VG.node, obj)
+        elif VG.node == predicate or VG.rank == predicate:
+            return self.steps(subject, predicate, obj)
         elif VG.reverseOfNode == predicate :
             return self.steps(subject, VG.reverseOfNode, obj)
         elif VG.path == predicate :
@@ -161,11 +169,25 @@ class OdgiStore(Store):
             yield p
 
     def steps(self, subject, predicate, obj):
-        for nodeHandle in self.handles():
-            for stepHandle in self.odgi.steps_of_handle(nodeHandle, False):
-                yield from self.stepHandleToTriples(stepHandle, nodeHandle, subject, predicate, obj)
+        if (subject == Any):
+
+            for pathHandle in self.pathHandles():
+                rank=1
+                stepHandle = self.odgi.path_begin(pathHandle)
+                nodeHandle = self.odgi.get_handle_of_step(stepHandle)
+                yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle, rank=rank)
+                
+                while self.odgi.has_next_step(stepHandle):
+                    stepHandle = self.odgi.get_next_step(stepHandle)
+                    nodeHandle = self.odgi.get_handle_of_step(stepHandle)
+                    rank = rank + 1
+                    yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle, rank=rank)
+        else:
+            for nodeHandle in self.handles():
+                for stepHandle in self.odgi.steps_of_handle(nodeHandle, False):
+                    yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle)
     
-    def stepHandleToTriples(self, stepHandle, nodeHandle, subject, predicate, obj):
+    def stepHandleToTriples(self, stepHandle, subject, predicate, obj, nodeHandle=None, rank=None):
         path = self.odgi.get_path_handle_of_step(stepHandle)
         pathName = self.odgi.get_path_name(path)
         stepIri = rdflib.URIRef(f'{pathName}-{self.odgi.get_id(nodeHandle)}', self.stepNS)
@@ -179,6 +201,12 @@ class OdgiStore(Store):
             if (predicate == VG.reverseOfNode or predicate == ANY and self.odgi.get_is_reverse(nodeHandle)) and (obj == ANY or obj == nodeIri):
                 nodeIri = self.nodeIri(nodeHandle)
                 yield ([(stepIri, VG.reverseOfNode, nodeIri), None])
+            
+            if (predicate == VG.rank or predicate == ANY) and not rank == None:
+                
+                rank = Literal(rank)
+                if obj == Any or obj == rank:
+                    yield ([(stepIri, VG.rank, rank), None])
             if (predicate == VG.path or predicate == ANY):
                 pathIri = self.pathNS.term(f'{pathName}')
                 if obj ==Any or obj == pathIri:
@@ -245,7 +273,9 @@ class OdgiStore(Store):
                 yield self.odgi.get_handle(nodeId-1)
 
     def pathHandles(self):
-        return
+        paths = []
+        self.odgi.for_each_path_handle(CollectPaths(paths))
+        yield from paths
     
 class NodeIriRef(rdflib.term.Identifier):
     __slots__ = ("_nodeHandle", "_base", "_odgi")
