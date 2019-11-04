@@ -139,12 +139,15 @@ class OdgiStore(Store):
  
     def nodes(self, subject, predicate, obj):
         if subject != ANY:
-            isNodeIri = self.isNodeIriInGraph(subject)
+            #isNodeIri = self.isNodeIriInGraph(subject)
             if predicate == RDF.type and obj == VG.Node and isNodeIri:
                 yield [(subject, RDF.type, VG.Node), None]
             elif predicate == ANY and obj == VG.Node and isNodeIri:
                 yield [(subject, RDF.type, VG.Node), None]
+            elif (type(subject) == NodeIriRef):
+                yield from self.handleToTriples(predicate, obj, subject._nodeHandle)
             elif isNodeIri:
+                subjectIriParts = subject.toPython().split('/')
                 yield from self.handleToTriples(predicate, obj, self.odgi.get_handle(int(subjectIriParts[-1])))
             else:
                 return self.__emptygen()
@@ -215,32 +218,34 @@ class OdgiStore(Store):
         
         path = self.odgi.get_path_handle_of_step(stepHandle)
         pathName = self.odgi.get_path_name(path)
-        stepIri = StepIriRef(stepHandle, self.base, self.odgi, position, rank)
+        if (type(subject) == StepIriRef):
+            stepIri = subject
+        else:
+            stepIri = StepIriRef(stepHandle, self.base, self.odgi, position, rank)
         if (subject == ANY or stepIri == subject):
             if (predicate == RDF.type or predicate == ANY) and (obj == ANY or obj == VG.Step):
                 yield ([(stepIri, RDF.type, VG.Step), None])
             
-            if (predicate == VG.node or predicate == ANY and not self.odgi.get_is_reverse(nodeHandle)) and (obj == ANY or obj == nodeIri):
-                nodeIri = self.nodeIri(nodeHandle)
+            nodeIri = self.nodeIri(nodeHandle)
+            if (predicate == VG.node or predicate == ANY and not self.odgi.get_is_reverse(nodeHandle)) and (obj == ANY or nodeIri == obj):
                 yield ([(stepIri, VG.node, nodeIri), None])
                 
-            if (predicate == VG.reverseOfNode or predicate == ANY and self.odgi.get_is_reverse(nodeHandle)) and (obj == ANY or obj == nodeIri):
-                nodeIri = self.nodeIri(nodeHandle)
+            if (predicate == VG.reverseOfNode or predicate == ANY and self.odgi.get_is_reverse(nodeHandle)) and (obj == ANY or nodeIri == obj):
                 yield ([(stepIri, VG.reverseOfNode, nodeIri), None])
         
             if (predicate == VG.rank or predicate == ANY) and not rank == None:
                 
                 rank = Literal(rank)
                 if obj == Any or obj == rank:
-                    yield ([(stepIri, VG.rank, rank), None])
-                    
-            if (predicate == VG.rank or predicate == ANY) and not position == None:
+                    yield ([(stepIri, VG.rank, rank), None])    
+            if (predicate == VG.position or predicate == ANY) and not position == None:
+                
                 position = Literal(position)
-                if obj == Any or obj == position:
+                if obj == Any or position == obj:
                     yield ([(stepIri, VG.position, position), None])
             if (predicate == VG.path or predicate == ANY):
                 pathIri = self.pathNS.term(f'{pathName}')
-                if obj ==Any or obj == pathIri:
+                if obj == Any or pathIri == obj:
                     yield ([(stepIri, VG.path, pathIri), None])
 
     def handleToTriples(self, predicate, obj, handle):
@@ -371,8 +376,9 @@ class StepIriRef(rdflib.term.Identifier):
          return inst
       
     def __eq__(self, other):
+        
         if type(self) == type(other):
-            return self.stepHandle == other._stepHandle and self._base == other._base
+            return self._stepHandle == other._stepHandle and self._base == other._base
         elif (type(other) == rdflib.URIRef):
             return rdflib.URIRef(self.unicode()) == other
         else:

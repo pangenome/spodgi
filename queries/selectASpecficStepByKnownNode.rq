@@ -1,0 +1,17 @@
+PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX vg:<http://biohackathon.org/resource/vg#>
+PREFIX f2f:<http://biohackathon.org/resource/vg#linksForwardToForward>
+SELECT 
+    DISTINCT
+        ?rank
+        ?path
+        ?node 
+        ?position 
+WHERE { 
+    BIND (<http://example.org/vg/node/5> AS ?node) . 
+    # ?originalNode f2f: ?node . 
+    ?step vg:node|vg:reverseNode ?node .
+    ?step vg:path ?path .
+    ?step vg:rank ?rank .
+    ?step vg:position ?position . 
+} ORDER BY ?rank
