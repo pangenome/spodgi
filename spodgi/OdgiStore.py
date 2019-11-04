@@ -229,7 +229,8 @@ class OdgiStore(Store):
         if (subject == ANY or stepIri == subject):
             if (predicate == RDF.type or predicate == ANY) and (obj == ANY or obj == VG.Step):
                 yield ([(stepIri, RDF.type, VG.Step), None])
-            
+            if (nodeHandle == None):
+                nodeHandle = self.odgi.get_handle_of_step(stepHandle)
             nodeIri = self.nodeIri(nodeHandle)
             if (predicate == VG.node or predicate == ANY and not self.odgi.get_is_reverse(nodeHandle)) and (obj == ANY or nodeIri == obj):
                 yield ([(stepIri, VG.node, nodeIri), None])
