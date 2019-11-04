@@ -29,7 +29,7 @@ def test_count_all():
     spodgi = Graph(store=s)
     spodgi.open('./test/t.odgi', create=False)
     for r in spodgi.query('SELECT (count(*) as ?count) WHERE {?s ?p ?o}'):
-        assert r[1].value == 91
+        assert r[0].value == 91
         
     spodgi.close()
     assert True
@@ -39,8 +39,8 @@ def test_select_specific_step():
     s = plugin.get('OdgiStore', Store)(base="http://example.org/test/")
     spodgi = Graph(store=s)
     spodgi.open('./test/t.odgi', create=False)
-    for r in spodgi.query('SELECT ?step ?rank WHERE {<path/x/step/2> <http://biohackathon.org/resource/VG#rank> 2}'):
-        assert r[1].value == 2
+    for r in spodgi.query('SELECT ?rank WHERE {<path/x/step/2> <http://biohackathon.org/resource/VG#rank> ?rank}'):
+        assert r[0].value == 2
         
     spodgi.close()
     assert True
