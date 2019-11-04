@@ -116,7 +116,7 @@ class OdgiStore(Store):
             subjectIriParts = subject.toPython().split('/')
             if 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
                 handle = self.odgi.get_handle(int(subjectIriParts[-1]))
-                return  chain(self.handleToTriples(predicate, obj, handle), self.handleToEdgeTriples(predicate, obj, handle))
+                return chain(self.handleToTriples(predicate, obj, handle), self.handleToEdgeTriples(subject, predicate, obj, handle))
             elif 'path' == subjectIriParts[-4] and 'step' == subjectIriParts[-2]:
                 return self.steps(subject, predicate, obj)
             elif 'path' == subjectIriParts[-2]:
@@ -139,21 +139,25 @@ class OdgiStore(Store):
  
     def nodes(self, subject, predicate, obj):
         if subject != ANY:
-            #isNodeIri = self.isNodeIriInGraph(subject)
+            isNodeIri = self.isNodeIriInGraph(subject)
+            
             if predicate == RDF.type and obj == VG.Node and isNodeIri:
                 yield [(subject, RDF.type, VG.Node), None]
             elif predicate == ANY and obj == VG.Node and isNodeIri:
                 yield [(subject, RDF.type, VG.Node), None]
             elif (type(subject) == NodeIriRef):
                 yield from self.handleToTriples(predicate, obj, subject._nodeHandle)
+                yield from self.handleToEdgeTriples(subject, predicate, obj, subject._nodeHandle)
             elif isNodeIri:
                 subjectIriParts = subject.toPython().split('/')
-                yield from self.handleToTriples(predicate, obj, self.odgi.get_handle(int(subjectIriParts[-1])))
+                nh = self.odgi.get_handle(int(subjectIriParts[-1]))
+                yield from self.handleToTriples(predicate, obj, nh)
+                yield from self.handleToEdgeTriples(subject, predicate, obj, nh)
             else:
                 return self.__emptygen()
         else:
             for handle in self.handles():
-                yield from self.handleToEdgeTriples(predicate, obj, handle)
+                yield from self.handleToEdgeTriples(subject, predicate, obj, handle)
                 yield from self.handleToTriples(predicate, obj, handle)
 
     def isNodeIriInGraph(self, iri):
@@ -250,6 +254,7 @@ class OdgiStore(Store):
 
     def handleToTriples(self, predicate, obj, handle):
         nodeIri = self.nodeIri(handle)
+        
         if (predicate == RDF.value or predicate == ANY):
             seqValue = rdflib.term.Literal(self.odgi.get_sequence(handle))
             if (obj == Any or obj == seqValue):
@@ -257,25 +262,28 @@ class OdgiStore(Store):
         elif (predicate == RDF.type or predicate == ANY) and (obj == Any or obj == VG.Node):
             yield [(nodeIri, RDF.type, VG.Node), None]
             
-    def handleToEdgeTriples(self, predicate, obj, handle):
+    def handleToEdgeTriples(self, subject, predicate, obj, handle):
+        
         if predicate == ANY or linkPredicates.__contains__(predicate):
             edges = []
             self.odgi.follow_edges(handle, False, CollectEdges(edges));
             nodeIri = self.nodeIri(handle)
             for edge in edges:
-                otherNode = self.nodeIri(edge)
-                if (obj == Any or obj == otherIri):
+                
+                otherIri = self.nodeIri(edge)
+                
+                if (obj == Any or otherIri == obj):
                     nodeIsReverse = self.odgi.get_is_reverse(handle);
                     otherIsReverse = self.odgi.get_is_reverse(edge)
                     #TODO: check the logic here
-                    if (predicate == ANY or VG.linksForwardToForward == ANY and not nodeIsReverse and not otherIsReverse):
-                        yield ([(nodeIri, VG.linksForwardToForward, otherNode), None])
-                    elif (predicate == ANY or VG.linksReverseToForward == ANY and nodeIsReverse and not otherIsReverse):
-                        yield ([(nodeIri, VG.linksReverseToForward, otherNode), None])
-                    elif (predicate == ANY or VG.linksReverseToReverse == ANY and nodeIsReverse and otherIsReverse):
-                        yield ([(nodeIri, VG.linksReverseToReverse, otherNode), None])
-                    elif (predicate == ANY or VG.linksReverseToReverse == ANY and not nodeIsReverse and otherIsReverse):
-                        yield ([(nodeIri, VG.linksForwardToReverse, otherNode), None])
+                    if (predicate == ANY or VG.linksForwardToForward == predicate) and not nodeIsReverse and not otherIsReverse:
+                        yield ([(nodeIri, VG.linksForwardToForward, otherIri), None])
+                    elif (predicate == ANY or VG.linksReverseToForward == predicate) and nodeIsReverse and not otherIsReverse:
+                        yield ([(nodeIri, VG.linksReverseToForward, otherIri), None])
+                    elif (predicate == ANY or VG.linksReverseToReverse == predicate) and nodeIsReverse and otherIsReverse:
+                        yield ([(nodeIri, VG.linksReverseToReverse, otherIri), None])
+                    elif (predicate == ANY or VG.linksReverseToReverse == predicate) and not nodeIsReverse and otherIsReverse:
+                        yield ([(nodeIri, VG.linksForwardToReverse, otherIri), None])
    
     def bind(self, prefix, namespace):
         self.namespace_manager.bind(prefix, namespace)
@@ -325,7 +333,7 @@ class NodeIriRef(rdflib.term.Identifier):
       
     def __eq__(self, other):
         if type(self) == type(other):
-            return self._nodeHandle == other._nodeHandle and self._base == other._base
+            return self._odgi.get_id(self._nodeHandle) == self._odgi.get_id(other._nodeHandle) and self._base == other._base
         elif (type(other) == rdflib.URIRef):
             return rdflib.URIRef(self.unicode()) == other
         else:
