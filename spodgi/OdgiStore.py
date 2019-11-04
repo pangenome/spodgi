@@ -106,12 +106,8 @@ class OdgiStore(Store):
                 return self.steps(subject, predicate, obj)
         elif RDF.value == predicate or linkPredicates.__contains__(predicate):
             return self.nodes(subject, predicate, obj)
-        elif VG.node == predicate or VG.rank == predicate:
+        elif VG.node == predicate or VG.rank == predicate or VG.reverseOfNode == predicate or VG.path == predicate:
             return self.steps(subject, predicate, obj)
-        elif VG.reverseOfNode == predicate :
-            return self.steps(subject, VG.reverseOfNode, obj)
-        elif VG.path == predicate :
-            return self.steps(subject, VG.path, obj)
         elif RDFS.label == predicate:
             return self.paths(subject, predicate, obj)
         elif subject == ANY and predicate == ANY and obj == ANY:
@@ -158,8 +154,11 @@ class OdgiStore(Store):
                 yield from self.handleToTriples(predicate, obj, handle)
 
     def isNodeIriInGraph(self, iri):
-        iriParts = iri.toPython().split('/')
-        return 'node' == iriParts[-2] and self.odgi.has_node(int(iriParts[-1]))
+        if (type(iri) == NodeIriRef):
+            return True
+        else:
+            iriParts = iri.toPython().split('/')
+            return 'node' == iriParts[-2] and self.odgi.has_node(int(iriParts[-1]))
 
     def paths(self, subject, predicate, obj):
         li = []
@@ -176,7 +175,6 @@ class OdgiStore(Store):
                     position=1
                     stepHandle = self.odgi.path_begin(pathHandle)
                     nodeHandle = self.odgi.get_handle_of_step(stepHandle)
-                    
                     yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle, rank=rank,position=position)
                     
                     while self.odgi.has_next_step(stepHandle):
@@ -185,13 +183,16 @@ class OdgiStore(Store):
                         nodeHandle = self.odgi.get_handle_of_step(stepHandle)
                         rank = rank + 1
                         yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle, rank=rank, position=position)
+        elif (type(subject) == StepIriRef):
+            yield from self.stepHandleToTriples(subject.stepHandle(), subject, predicate, obj, rank=subject.rank(), position=subject.position())
         else:
             subjectIriParts = subject.toPython().split('/')
             if 'path' == subjectIriParts[-4] and 'step' == subjectIriParts[-2]:
                 pathName = subjectIriParts[-3];
                 pathHandle = self.odgi.get_path_handle(pathName)
                 stepRank = int(subjectIriParts[-1]);
-                if not self.odgi.is_empty(pathHandle):
+                
+                if not self.odgi.is_empty(pathHandle):     
                     rank=1
                     position=1
                     stepHandle = self.odgi.path_begin(pathHandle)
@@ -201,7 +202,6 @@ class OdgiStore(Store):
                         position = position + self.odgi.get_length(nodeHandle)
                         stepHandle = self.odgi.get_next_step(stepHandle)
                         nodeHandle = self.odgi.get_handle_of_step(stepHandle)
-                        
                     yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle, rank=rank, position=position)
                         
                     
@@ -212,10 +212,11 @@ class OdgiStore(Store):
                     #yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle)
     
     def stepHandleToTriples(self, stepHandle, subject, predicate, obj, nodeHandle=None, rank=None,position=None):
+        
         path = self.odgi.get_path_handle_of_step(stepHandle)
         pathName = self.odgi.get_path_name(path)
-        stepIri = rdflib.URIRef(f'path/{pathName}/step/{rank}', self.base)
-        if (subject == ANY or subject == stepIri):
+        stepIri = StepIriRef(stepHandle, self.base, self.odgi, position, rank)
+        if (subject == ANY or stepIri == subject):
             if (predicate == RDF.type or predicate == ANY) and (obj == ANY or obj == VG.Step):
                 yield ([(stepIri, RDF.type, VG.Step), None])
             
@@ -226,8 +227,9 @@ class OdgiStore(Store):
             if (predicate == VG.reverseOfNode or predicate == ANY and self.odgi.get_is_reverse(nodeHandle)) and (obj == ANY or obj == nodeIri):
                 nodeIri = self.nodeIri(nodeHandle)
                 yield ([(stepIri, VG.reverseOfNode, nodeIri), None])
-            
+        
             if (predicate == VG.rank or predicate == ANY) and not rank == None:
+                
                 rank = Literal(rank)
                 if obj == Any or obj == rank:
                     yield ([(stepIri, VG.rank, rank), None])
@@ -355,3 +357,67 @@ class NodeIriRef(rdflib.term.Identifier):
 
     def __hash__(self):
         return self._odgi.get_id(self._nodeHandle)
+
+class StepIriRef(rdflib.term.Identifier):
+    __slots__ = ("_stepHandle", "_base", "_odgi", "_position", "_rank")
+    
+    def __new__(cls, stepHandle, base, odgi, position, rank):
+         inst =  str.__new__(cls)
+         inst._stepHandle = stepHandle
+         inst._base = base
+         inst._odgi = odgi
+         inst._rank = rank
+         inst._position = position
+         return inst
+      
+    def __eq__(self, other):
+        if type(self) == type(other):
+            return self.stepHandle == other._stepHandle and self._base == other._base
+        elif (type(other) == rdflib.URIRef):
+            return rdflib.URIRef(self.unicode()) == other
+        else:
+            return False
+                
+    def __gt__(self, other):
+        if other is None:
+            return True  # everything bigger than None
+        elif type(self) == type(other):
+            if (self._base > other._base):
+                return True
+            elif (self._base < other._base):
+                return False
+            else:
+                return self._rank > other._rank
+            
+    def n3(self, namespace_manager = None):
+        if namespace_manager:
+            return namespace_manager.normalizeUri(self)
+        else:
+            return f'<{self.unicode()}>'
+
+    def stepHandle(self):
+        return self._stepHandle
+    
+    def rank(self):
+        return self._rank
+    
+    def position(self):
+        return self._position
+    
+    def path(self):
+        return self._path
+        
+    def toPython(self):
+        return self.unicode()
+        
+    def unicode(self):
+        return f'{self._base}path/{self._odgi.get_path_name(self._odgi.get_path_handle_of_step(self._stepHandle))}/step/{self._rank}'
+    
+    def __str__(self):
+        return self.unicode()
+    
+    def __repr__(self):
+        return 'odgi.StepIriRef(\''+self.unicode()+'\')'
+
+    def __hash__(self):
+        return hash(self._stepHandle)
