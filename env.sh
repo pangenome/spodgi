@@ -1,2 +1,2 @@
 #!/usr/bin/bash
-export PYTHONPATH=:~/git/odgi/lib/
+export PYTHONPATH=:~/git/odgi/lib/:~/git/xg/lib
