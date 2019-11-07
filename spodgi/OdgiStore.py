@@ -13,10 +13,10 @@ VG = Namespace('http://biohackathon.org/resource/vg#')
 FALDO = Namespace('http://biohackathon.org/resource/faldo#')
 
 knownTypes = [VG.Node, VG.Path, VG.Step, FALDO.Region, FALDO.ExactPosition, FALDO.Position]
-knownPredicates = [RDF.value, VG.rank, VG.offset, VG.step, VG.path, VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.reverseOfNode, VG.node, FALDO.begin, FALDO.end, FALDO.reference]
-linkPredicates = [VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse]
+knownPredicates = [RDF.value, VG.rank, VG.position, VG.step, VG.path, VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.reverseOfNode, VG.node, FALDO.begin, FALDO.end, FALDO.reference]
+nodeRelatedPredicates = [VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, RDF.value]
 stepAssociatedTypes = [FALDO.Region, FALDO.ExactPosition, FALDO.Position]
-stepAssociatedPredicates = [VG.rank, VG.offset, VG.path, VG.node, VG.reverseOfNode, FALDO.begin, FALDO.end, FALDO.reference]
+stepAssociatedPredicates = [VG.rank, VG.position, VG.path, VG.node, VG.reverseOfNode, FALDO.begin, FALDO.end, FALDO.reference]
 
 __all__ = [ 'OdgiStore' ]
 
@@ -100,17 +100,8 @@ class OdgiStore(Store):
         """A generator over all the triples matching """
         subject, predicate, obj = triple_pattern
         if RDF.type == predicate and obj != ANY:
-            if not obj in knownTypes:
-                return self.__emptygen()
-            elif VG.Node == obj:
-                return self.nodes(subject, predicate, obj)
-            elif VG.Path == obj:
-                return self.paths(subject, predicate, obj)
-            elif obj in stepAssociatedTypes:
-                return self.steps(subject, predicate, obj)
-            else:
-                return self.__emptygen()
-        elif RDF.value == predicate or (predicate in linkPredicates):
+           return self.typeTriples(subject, predicate, obj)
+        elif  (predicate in nodeRelatedPredicates):
             return self.nodes(subject, predicate, obj)
         elif predicate in stepAssociatedPredicates:
             return self.steps(subject, predicate, obj)
@@ -129,7 +120,18 @@ class OdgiStore(Store):
                 return self.paths(subject, predicate, obj)
         else:
             return self.__emptygen()
-                     
+
+    #For the known types we can shortcut evaluation in many cases
+    def typeTriples(self, subject, predicate, obj):
+        if VG.Node == obj:
+            return self.nodes(subject, predicate, obj)
+        elif VG.Path == obj:
+            return self.paths(subject, predicate, obj)
+        elif obj in stepAssociatedTypes:
+            return self.steps(subject, predicate, obj)
+        else:
+            return self.__emptygen()
+
     def __allTypes(self):
         for typ in knownTypes:
             yield from self.triples((ANY, RDF.type, typ))
@@ -252,15 +254,15 @@ class OdgiStore(Store):
                 yield ([(stepIri, VG.reverseOfNode, nodeIri), None])
         
             if (predicate == VG.rank or predicate == ANY) and not rank == None:
-                
                 rank = Literal(rank)
                 if obj == Any or obj == rank:
-                    yield ([(stepIri, VG.rank, rank), None])    
+                    yield ([(stepIri, VG.rank, rank), None])
+                    
             if (predicate == VG.position or predicate == ANY) and not position == None:
-                
                 position = Literal(position)
                 if obj == Any or position == obj:
                     yield ([(stepIri, VG.position, position), None])
+
             if (predicate == VG.path or predicate == ANY):
                 pathIri = self.pathNS.term(f'{pathName}')
                 if obj == Any or pathIri == obj:
@@ -278,7 +280,7 @@ class OdgiStore(Store):
             
     def handleToEdgeTriples(self, subject, predicate, obj, handle):
         
-        if predicate == ANY or linkPredicates.__contains__(predicate):
+        if predicate == ANY or (predicate in nodeRelatedPredicates):
             edges = []
             self.odgi.follow_edges(handle, False, CollectEdges(edges));
             nodeIri = self.nodeIri(handle)
