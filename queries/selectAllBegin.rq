@@ -1,0 +1,5 @@
+prefix faldo:<http://biohackathon.org/resource/faldo#>
+SELECT * 
+WHERE {
+    ?s faldo:begin ?o 
+}

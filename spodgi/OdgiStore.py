@@ -10,10 +10,13 @@ from rdflib import plugin
 from itertools import chain
 
 VG = Namespace('http://biohackathon.org/resource/vg#')
+FALDO = Namespace('http://biohackathon.org/resource/faldo#')
 
-knownTypes = [VG.Node, VG.Path, VG.Step]
-knownPredicates = [RDF.value, VG.rank, VG.offset, VG.step, VG.path, VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.reverseOfNode, VG.node]
+knownTypes = [VG.Node, VG.Path, VG.Step, FALDO.Region, FALDO.ExactPosition, FALDO.Position]
+knownPredicates = [RDF.value, VG.rank, VG.offset, VG.step, VG.path, VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.reverseOfNode, VG.node, FALDO.begin, FALDO.end, FALDO.reference]
 linkPredicates = [VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse]
+stepAssociatedTypes = [FALDO.Region, FALDO.ExactPosition, FALDO.Position]
+stepAssociatedPredicates = [VG.rank, VG.offset, VG.path, VG.node, VG.reverseOfNode, FALDO.begin, FALDO.end, FALDO.reference]
 
 __all__ = [ 'OdgiStore' ]
 
@@ -74,6 +77,7 @@ class OdgiStore(Store):
         super(OdgiStore, self).__init__(configuration)
         self.namespace_manager = NamespaceManager(Graph())
         self.bind('vg', VG)
+        self.bind('faldo', FALDO)
         self.identifier = identifier
         self.configuration = configuration
         if base == None:
@@ -96,17 +100,19 @@ class OdgiStore(Store):
         """A generator over all the triples matching """
         subject, predicate, obj = triple_pattern
         if RDF.type == predicate and obj != ANY:
-            if not knownTypes.__contains__(obj):
+            if not obj in knownTypes:
                 return self.__emptygen()
             elif VG.Node == obj:
                 return self.nodes(subject, predicate, obj)
             elif VG.Path == obj:
                 return self.paths(subject, predicate, obj)
-            elif VG.Step == obj:
+            elif obj in stepAssociatedTypes:
                 return self.steps(subject, predicate, obj)
-        elif RDF.value == predicate or linkPredicates.__contains__(predicate):
+            else:
+                return self.__emptygen()
+        elif RDF.value == predicate or (predicate in linkPredicates):
             return self.nodes(subject, predicate, obj)
-        elif VG.node == predicate or VG.rank == predicate or VG.reverseOfNode == predicate or VG.path == predicate:
+        elif predicate in stepAssociatedPredicates:
             return self.steps(subject, predicate, obj)
         elif RDFS.label == predicate:
             return self.paths(subject, predicate, obj)
@@ -125,8 +131,8 @@ class OdgiStore(Store):
             return self.__emptygen()
                      
     def __allTypes(self):
-        for type in knownTypes:
-            yield from self.triples((ANY, RDF.type, type))
+        for typ in knownTypes:
+            yield from self.triples((ANY, RDF.type, typ))
             
     def __allPredicates(self):
         for pred in knownPredicates:
@@ -227,8 +233,15 @@ class OdgiStore(Store):
         else:
             stepIri = StepIriRef(stepHandle, self.base, self.odgi, position, rank)
         if (subject == ANY or stepIri == subject):
-            if (predicate == RDF.type or predicate == ANY) and (obj == ANY or obj == VG.Step):
-                yield ([(stepIri, RDF.type, VG.Step), None])
+            if (predicate == RDF.type or predicate == ANY):
+                if (obj == ANY or obj == VG.Step):
+                    yield ([(stepIri, RDF.type, VG.Step), None])
+                if (obj == ANY or obj == FALDO.Region):
+                    yield ([(stepIri, RDF.type, FALDO.Region), None])
+            if (predicate == ANY or predicate == FALDO.begin):
+                yield ([(stepIri, FALDO.begin, StepBeginIriRef(stepHandle,self.base, self.odgi, rank, position)), None])
+            if (predicate == ANY or predicate == FALDO.end):
+                yield ([(stepIri, FALDO.end, StepEndIriRef(stepHandle,self.base, self.odgi, rank, position)), None])
             if (nodeHandle == None):
                 nodeHandle = self.odgi.get_handle_of_step(stepHandle)
             nodeIri = self.nodeIri(nodeHandle)
@@ -372,7 +385,7 @@ class NodeIriRef(rdflib.term.Identifier):
     def __hash__(self):
         return self._odgi.get_id(self._nodeHandle)
 
-class StepIriRef(rdflib.term.Identifier):
+class StepIriRef(rdflib.term.URIRef):
     __slots__ = ("_stepHandle", "_base", "_odgi", "_position", "_rank")
     
     def __new__(cls, stepHandle, base, odgi, position, rank):
@@ -427,6 +440,137 @@ class StepIriRef(rdflib.term.Identifier):
         
     def unicode(self):
         return f'{self._base}path/{self._odgi.get_path_name(self._odgi.get_path_handle_of_step(self._stepHandle))}/step/{self._rank}'
+    
+    def __str__(self):
+        return self.unicode()
+    
+    def __repr__(self):
+        return 'odgi.StepIriRef(\''+self.unicode()+'\')'
+
+    def __hash__(self):
+        return hash(self._stepHandle)
+    
+class StepBeginIriRef(rdflib.term.URIRef):
+    __slots__ = ("_stepHandle", "_base", "_odgi", "_position", "_rank")
+    
+    def __new__(cls, stepHandle, base, odgi, position, rank):
+         inst =  str.__new__(cls)
+         inst._stepHandle = stepHandle
+         inst._base = base
+         inst._odgi = odgi
+         inst._rank = rank
+         inst._position = position
+         return inst
+      
+    def __eq__(self, other):
+        
+        if type(self) == type(other):
+            return self._stepHandle == other._stepHandle and self._base == other._base
+        elif (type(other) == rdflib.URIRef):
+            return rdflib.URIRef(self.unicode()) == other
+        else:
+            return False
+                
+    def __gt__(self, other):
+        if other is None:
+            return True  # everything bigger than None
+        elif type(self) == type(other):
+            if (self._base > other._base):
+                return True
+            elif (self._base < other._base):
+                return False
+            else:
+                return self._rank > other._rank
+            
+    def n3(self, namespace_manager = None):
+        if namespace_manager:
+            return namespace_manager.normalizeUri(self)
+        else:
+            return f'<{self.unicode()}>'
+
+    def stepHandle(self):
+        return self._stepHandle
+    
+    def rank(self):
+        return self._rank
+    
+    def position(self):
+        return self._position
+    
+    def path(self):
+        return self._path
+        
+    def toPython(self):
+        return self.unicode()
+        
+    def unicode(self):
+        return f'{self._base}path/{self._odgi.get_path_name(self._odgi.get_path_handle_of_step(self._stepHandle))}/step/{self._rank}/begin/{self._position}'
+    
+    def __str__(self):
+        return self.unicode()
+    
+    def __repr__(self):
+        return 'odgi.StepIriRef(\''+self.unicode()+'\')'
+
+    def __hash__(self):
+        return hash(self._stepHandle)
+    
+class StepEndIriRef(rdflib.term.URIRef):
+    __slots__ = ("_stepHandle", "_base", "_odgi", "_position", "_rank")
+    
+    def __new__(cls, stepHandle, base, odgi, position, rank):
+         inst =  str.__new__(cls)
+         inst._stepHandle = stepHandle
+         inst._base = base
+         inst._odgi = odgi
+         inst._rank = rank
+         inst._position = position
+         return inst
+      
+    def __eq__(self, other):
+        
+        if type(self) == type(other):
+            return self._stepHandle == other._stepHandle and self._base == other._base
+        elif (type(other) == rdflib.URIRef):
+            return rdflib.URIRef(self.unicode()) == other
+        else:
+            return False
+                
+    def __gt__(self, other):
+        if other is None:
+            return True  # everything bigger than None
+        elif type(self) == type(other):
+            if (self._base > other._base):
+                return True
+            elif (self._base < other._base):
+                return False
+            else:
+                return self._rank > other._rank
+            
+    def n3(self, namespace_manager = None):
+        if namespace_manager:
+            return namespace_manager.normalizeUri(self)
+        else:
+            return f'<{self.unicode()}>'
+
+    def stepHandle(self):
+        return self._stepHandle
+    
+    def rank(self):
+        return self._rank
+    
+    def position(self):
+        return self._position
+    
+    def path(self):
+        return self._path
+        
+    def toPython(self):
+        return self.unicode()
+        
+    def unicode(self):
+        end = self._position + self._odgi.get_length(self._odgi.get_handle_of_step(self._stepHandle))
+        return f'{self._base}path/{self._odgi.get_path_name(self._odgi.get_path_handle_of_step(self._stepHandle))}/step/{self._rank}/end/{end}'
     
     def __str__(self):
         return self.unicode()
