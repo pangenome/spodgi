@@ -13,8 +13,8 @@ VG = Namespace('http://biohackathon.org/resource/vg#')
 FALDO = Namespace('http://biohackathon.org/resource/faldo#')
 
 knownTypes = [VG.Node, VG.Path, VG.Step, FALDO.Region, FALDO.ExactPosition, FALDO.Position]
-knownPredicates = [RDF.value, VG.rank, VG.position, VG.step, VG.path, VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.reverseOfNode, VG.node, FALDO.begin, FALDO.end, FALDO.reference]
-nodeRelatedPredicates = [VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, RDF.value]
+knownPredicates = [RDF.value, VG.rank, VG.position, VG.step, VG.path, VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.links, VG.reverseOfNode, VG.node, FALDO.begin, FALDO.end, FALDO.reference]
+nodeRelatedPredicates = [VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.links, RDF.value]
 stepAssociatedTypes = [FALDO.Region, FALDO.ExactPosition, FALDO.Position]
 stepAssociatedPredicates = [VG.rank, VG.position, VG.path, VG.node, VG.reverseOfNode, FALDO.begin, FALDO.end, FALDO.reference]
 
@@ -300,6 +300,8 @@ class OdgiStore(Store):
                         yield ([(nodeIri, VG.linksReverseToReverse, otherIri), None])
                     elif (predicate == ANY or VG.linksReverseToReverse == predicate) and not nodeIsReverse and otherIsReverse:
                         yield ([(nodeIri, VG.linksForwardToReverse, otherIri), None])
+                    elif (predicate == ANY or VG.links == predicate):
+                        yield ([(nodeIri, VG.links, otherIri), None])
    
     def bind(self, prefix, namespace):
         self.namespace_manager.bind(prefix, namespace)

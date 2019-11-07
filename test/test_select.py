@@ -29,7 +29,7 @@ def test_count_all():
     spodgi = Graph(store=s)
     spodgi.open('./test/t.odgi', create=False)
     for r in spodgi.query('SELECT (count(*) as ?count) WHERE {?s ?p ?o}'):
-        assert r[0].value == 131
+        assert r[0].value == 151
         
     spodgi.close()
     assert True
