@@ -5,8 +5,8 @@ from setuptools import setup
 
 PY2 = sys.version_info.major == 2
 
-project = "rdflib-sqlalchemy"
-version = "0.3.8"
+project = "spodgi"
+version = "0.0.2"
 
 
 setup(
@@ -17,7 +17,7 @@ setup(
     author_email="me@jerven.eu",
     url="http://github.com/JervenBolleman/spdogi",
     packages=["spodgi"],
-    download_url="https://github.com/JervenBolleman/zipball/master",
+    download_url="https://github.com/JervenBolleman/spodgi/master",
     license="MIT",
     platforms=["any"],
     long_description="""
@@ -39,8 +39,7 @@ setup(
     ],
     install_requires=[
         "Click>=7.0.0",
-        "rdflib>=4.0",
-        "six>=1.10.0"
+        "rdflib>=4.0"
     ],
     setup_requires=[
     
