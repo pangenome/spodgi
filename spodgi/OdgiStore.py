@@ -20,7 +20,7 @@ stepAssociatedPredicates = [VG.rank, VG.position, VG.path, VG.node, VG.reverseOf
 
 __all__ = [ 'OdgiStore' ]
 
-ANY = Any = None
+ANY = None
 
 #This is the code that can be passed into the C++ handle graph.
 #However, my worry is how to change this so that this can be an generator
@@ -84,10 +84,8 @@ class OdgiStore(Store):
             self.base = 'http://example.org/vg/'
         else:
             self.base = base
-        self.nodeNS = Namespace(f'{self.base}node/')
         self.pathNS = Namespace(f'{self.base}path/')
         self.stepNS = Namespace(f'{self.base}step/')
-        self.bind('node', self.nodeNS)
         self.bind('path', self.pathNS)
         self.bind('step', self.stepNS)
         
@@ -188,7 +186,7 @@ class OdgiStore(Store):
 
     def steps(self, subject, predicate, obj):
         
-        if (subject == Any):
+        if (subject == ANY):
             for pathHandle in self.pathHandles():
                 if not self.odgi.is_empty(pathHandle):
                     rank=1
@@ -254,7 +252,7 @@ class OdgiStore(Store):
                     yield ([(stepIri, RDF.type, FALDO.Region), None])
             if (nodeHandle == None):
                 nodeHandle = self.odgi.get_handle_of_step(stepHandle)
-            nodeIri = self.nodeIri(nodeHandle)
+            nodeIri = NodeIriRef(nodeHandle, self.odgi, self.base)
             if (predicate == VG.node or predicate == ANY and not self.odgi.get_is_reverse(nodeHandle)) and (obj == ANY or nodeIri == obj):
                 yield ([(stepIri, VG.node, nodeIri), None])
                 
@@ -263,12 +261,12 @@ class OdgiStore(Store):
         
             if (predicate == VG.rank or predicate == ANY) and not rank == None:
                 rank = Literal(rank)
-                if obj == Any or obj == rank:
+                if obj == ANY or obj == rank:
                     yield ([(stepIri, VG.rank, rank), None])
                     
             if (predicate == VG.position or predicate == ANY) and not position == None:
                 position = Literal(position)
-                if obj == Any or position == obj:
+                if obj == ANY or position == obj:
                     yield ([(stepIri, VG.position, position), None])
 
             if (predicate == VG.path or predicate == ANY):
@@ -276,7 +274,7 @@ class OdgiStore(Store):
                 pathName = self.odgi.get_path_name(path)
 
                 pathIri = self.pathNS.term(f'{pathName}')
-                if obj == Any or pathIri == obj:
+                if obj == ANY or pathIri == obj:
                     yield ([(stepIri, VG.path, pathIri), None])
             
             if (predicate == ANY or predicate == FALDO.begin):
@@ -312,28 +310,28 @@ class OdgiStore(Store):
                 yield ([(subject, FALDO.reference, pathIri), None])
         
 
-    def handleToTriples(self, predicate, obj, handle):
-        nodeIri = self.nodeIri(handle)
+    def handleToTriples(self, predicate, obj, nodeHandle):
+        nodeIri = NodeIriRef(nodeHandle, self.odgi, self.base)
         
         if (predicate == RDF.value or predicate == ANY):
-            seqValue = rdflib.term.Literal(self.odgi.get_sequence(handle))
-            if (obj == Any or obj == seqValue):
+            seqValue = rdflib.term.Literal(self.odgi.get_sequence(nodeHandle))
+            if (obj == ANY or obj == seqValue):
                 yield [(nodeIri, RDF.value, seqValue), None]
-        elif (predicate == RDF.type or predicate == ANY) and (obj == Any or obj == VG.Node):
+        elif (predicate == RDF.type or predicate == ANY) and (obj == ANY or obj == VG.Node):
             yield [(nodeIri, RDF.type, VG.Node), None]
             
-    def handleToEdgeTriples(self, subject, predicate, obj, handle):
+    def handleToEdgeTriples(self, subject, predicate, obj, nodeHandle):
         
         if predicate == ANY or (predicate in nodeRelatedPredicates):
-            edges = []
-            self.odgi.follow_edges(handle, False, CollectEdges(edges));
-            nodeIri = self.nodeIri(handle)
-            for edge in edges:
+            toNodeHandles = []
+            self.odgi.follow_edges(nodeHandle, False, CollectEdges(toNodeHandles));
+            nodeIri = NodeIriRef(nodeHandle, self.odgi, self.base)
+            for edge in toNodeHandles:
                 
-                otherIri = self.nodeIri(edge)
+                otherIri = NodeIriRef(edge, self.odgi, self.base)
                 
-                if (obj == Any or otherIri == obj):
-                    nodeIsReverse = self.odgi.get_is_reverse(handle);
+                if (obj == ANY or otherIri == obj):
+                    nodeIsReverse = self.odgi.get_is_reverse(nodeHandle);
                     otherIsReverse = self.odgi.get_is_reverse(edge)
                     #TODO: check the logic here
                     if (predicate == ANY or VG.linksForwardToForward == predicate) and not nodeIsReverse and not otherIsReverse:
@@ -363,12 +361,6 @@ class OdgiStore(Store):
     def namespaces(self):
         return self.namespace_manager.namespaces()
     
-    # This does not make a big difference as numeric local names 
-    # are not turned into nice looking shortcuts in turtle 
-    def nodeIri(self, nodeHandle):
-        return NodeIriRef(nodeHandle, self.nodeNS, self.odgi)
-        
-    
     def handles(self):
         nodeId = self.odgi.min_node_id()
         
@@ -383,7 +375,7 @@ class OdgiStore(Store):
         self.odgi.for_each_path_handle(CollectPaths(paths))
         yield from paths
     
-class NodeIriRef(rdflib.term.Identifier):
+class NodeIriRef(rdflib.term.URIRef):
     __slots__ = ("_nodeHandle", "_base", "_odgi")
     
     def __new__(cls, nodeHandle, base, odgi):
@@ -497,7 +489,11 @@ class StepIriRef(rdflib.term.URIRef):
 
     def __hash__(self):
         return hash(self._stepHandle)
-    
+
+"""
+An IRIRef that keeps a pointer to the step, so that it is quick to extract the
+the offset of the step.
+"""
 class StepBeginIriRef(rdflib.term.URIRef):
     __slots__ = ("_stepIri")
     
@@ -553,7 +549,11 @@ class StepBeginIriRef(rdflib.term.URIRef):
 
     def __hash__(self):
         return hash(self._stepIri)
-    
+
+"""
+An IRIRef that keeps a pointer to the step, so that it is quick to extract the
+the offset of the step plus the length of the representative node.
+"""
 class StepEndIriRef(rdflib.term.URIRef):
     __slots__ = ("_stepIri")
     
