@@ -56,6 +56,7 @@ However, it adds more `rdf:type` statements as well as makes it easier to map fr
 The trick is that in VG RDF there are almost one to one mappings between a `rdf:type` or a predicate and a handlgegraph object type. For example if we see `vg:Node` we know we are dealing with a `handle`, if we see `rdf:value` as predicate we know it works on the node sequences. All VG and FALDO predicates, classes and literals map straight forwards to a known set of Odgi/libhandlegraph methods and objects.
 
 | Predicate | Object/Class |
+|--------------|-----------------|
 | `rdf:value` | Node->sequence |
 | `vg:links` | Node->Node (Edge) |
 | `vg:linksReverseToReverse` | Node->Node (Edge) |
@@ -72,7 +73,8 @@ The trick is that in VG RDF there are almost one to one mappings between a `rdf:
 | `faldo:reference` | Step->Path |
 | `rdf:label` | Path->name |
 
-|Types | Object/Class |
+| Types | Object/Class |
+|----------|----------|
 | `vg:Node` | `Node` |
 | `vg:Step` | `Step` |
 | `faldo:Region` | `Step` |
