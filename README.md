@@ -36,8 +36,8 @@ See more example queries in the queries directory. You can run them like this.
 
 # Variation Graphs as RDF/semantic graphs.
 
-The modelling is following what is described in the [vg](/vgteam/vg) repository. 
-Such as in the [ontology directory](/vgteam/vg/tree/master/ontology)
+The modelling is following what is described in the [vg](https://github.com/vgteam/vg) repository. 
+Such as in the [ontology directory](https://github.com/vgteam/vg/tree/master/ontology)
 
 # Converting an Odgi into RDF
 
@@ -93,7 +93,7 @@ For each triple pattern we generate all possible matching triples using python g
 # How to run
 
 Currently this needs a specific branch of Odgi for more python support (specifically equals methods on step objects).
-Once that is installed and build you can look into the [env.sh](/spodgi/blob/master/env.sh), to make sure the Odgi pythonmodule is on your path.
+Once that is installed and build you can look into the [env.sh](/env.sh), to make sure the Odgi pythonmodule is on your path.
 
 Then you can use the setup.py to install SpOdgi.
 
@@ -110,7 +110,7 @@ The code to access Odgi methods/objects is listed in [Odgi src pythonmodule.cpp]
 ## Avoiding fetching known data
 
 To avoid needing to re-fetch data we already fetched from disk/Odgi multiple times for a simple join we attach the reference to the Odgi object to the associated RDFLib URIRef objects.
-We do this by extending URIRef with our own implementations in [](/spodgi/blob/master/spodgi/terms.py).
+We do this by extending URIRef with our own implementations in [terms.py](/spodgi/terms.py).
 This is useful because the lazy manner of generator use in the RDFLib query engine leads to normal reasonable queries encouraging Odgi objects to have a short live time.
 
 This is also made possible because we use predictable patterns in our IRIs. For example we encode the path/step_rank/position for the `faldo:Position` objects in their IRIs. This means that given an IRI like this we can use the Odgi (or other libhandlegraph) indexes for efficient access.
