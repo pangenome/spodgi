@@ -3,6 +3,11 @@ Use a general graph query language SPARQL to investigate genome variation graphs
 
 Currently it exposes any [Odgi](https://github.com/vgteam/odgi) genome variation graph via SPARQL a W3C standard query language. At the moment this is read only mode, and one can not modify the graph using SPARQL update yet.
 
+# Benefit
+
+Any Odgi file is now a SPARQL capable database! No translation or extra storage required.
+Ready for use by [FAIR accessors](https://peerj.com/articles/cs-110/).
+
 # Help wanted
 
 This is a hobby for me, but could be very useful for others so please join and hack on this ;)
@@ -53,7 +58,7 @@ However, it adds more `rdf:type` statements as well as makes it easier to map fr
 
 ## Mapping between types/predicates and known objects
 
-The trick is that in VG RDF there are almost one to one mappings between a `rdf:type` or a predicate and a handlgegraph object type. For example if we see `vg:Node` we know we are dealing with a `handle`, if we see `rdf:value` as predicate we know it works on the node sequences. All VG and FALDO predicates, classes and literals map straight forwards to a known set of Odgi/libhandlegraph methods and objects.
+The trick is that in VG RDF there are almost one to one mappings between a `rdf:type` or a predicate and a handlgegraph object type. For example if we see `vg:Node` we know we are dealing with a `handle`, if we see `rdf:value` as predicate we know it works on the node sequences. All [VG](http://biohackathon.org/resource/vg) and [FALDO](http://biohackathon.org/resource/faldo) predicates, classes and literals map straight forwards to a known set of Odgi/libhandlegraph methods and objects.
 
 | Predicate | Object/Class |
 |--------------|-----------------|
@@ -88,7 +93,13 @@ The way the SPARQL engines are build allows us to get the full (if not optimal) 
 
 For each triple pattern we generate all possible matching triples using python generators (`yield`). For example if we see in triple pattern with `rdf:type` as predicate we know we need to iterate over all Odgi objects and return for each of them the triples where the `rdf:type` is set. If the predicate is not known we return an empty generator.
 
+## Why VG ?
 
+vG is the first useful graph genome variation toolkit. That has supported writing and reading RDF since 2016. This introduced the predicates and classes needed for describing and navigating through the graph genome topology.
+
+## Why FALDO
+
+[FALDO](https://jbiomedsem.biomedcentral.com/articles/10.1186/s13326-016-0067-z) is a way to describe a linear coordinate space as used in [UniProt](https://sparql.uniprot.org) and the [Ensembl/EBI RDF platform](http://rdf.ebi.ac.uk) and other sequence orientated databases. Supporting FALDO makes it easier to use queries designed for the linear view on the graph genome view, allowing both kinds of views on the same data. 
 
 # How to run
 
@@ -107,10 +118,23 @@ The code to access Odgi methods/objects is listed in [Odgi src pythonmodule.cpp]
 
 ## Python3 Generators
 
+We use python generators to allow the RDFLib to lazily evaluate the queries.
+```python
+yield from
+yield
+```
+are common in the code base.
+These don't map nicely to the internal iterators of libhandlegraph style.
+But with pybind we can have the most important methods be lazy.
+
 ## Avoiding fetching known data
 
-To avoid needing to re-fetch data we already fetched from disk/Odgi multiple times for a simple join we attach the reference to the Odgi object to the associated RDFLib URIRef objects.
-We do this by extending URIRef with our own implementations in [terms.py](/spodgi/terms.py).
+Odgi is the storarge of the genome graph. We don't add a byte of overhead to the core storage.
+However SPARQL is join orientated (joins are implicit on variable reuse).
+Joins are normally expensive. 
+To avoid needing to re-join data we already fetched from disk/Odgi multiple times for a simple patter we attach the reference to the Odgi object(C++ pointers) to the associated RDFLib URIRef objects.
+
+We do this by extending URIRef with our own implementations in [](/spodgi/blob/master/spodgi/terms.py).
 This is useful because the lazy manner of generator use in the RDFLib query engine leads to normal reasonable queries encouraging Odgi objects to have a short live time.
 
 This is also made possible because we use predictable patterns in our IRIs. For example we encode the path/step_rank/position for the `faldo:Position` objects in their IRIs. This means that given an IRI like this we can use the Odgi (or other libhandlegraph) indexes for efficient access.
@@ -119,3 +143,5 @@ This is also made possible because we use predictable patterns in our IRIs. For 
 
 This means we need to use an iterator from 0 for every step access. We can be no faster than Odgi here.
 Unfortunately a lot of interesting queries for visualisation are very much driven by a natural linearisation of the genome variation graph.
+
+Other linhandlegraphs do have this (e.g. [xg](https://github.com/vgteam/xg)) and there are ways to index this reasonably well without much overhead in the python code.

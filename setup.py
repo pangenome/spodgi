@@ -1,12 +1,12 @@
-#!/usr/bin/env python
 import sys
 
 from setuptools import setup
 
-PY2 = sys.version_info.major == 2
-
 project = "spodgi"
 version = "0.0.2"
+
+with open("README.md", "r") as fh:
+    long_description = fh.read()
 
 
 setup(
@@ -20,9 +20,8 @@ setup(
     download_url="https://github.com/JervenBolleman/spodgi/master",
     license="MIT",
     platforms=["any"],
-    long_description="""
-    ODGI genome graph store formula-aware implementation.
-    """,
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Programming Language :: Python",
@@ -37,6 +36,7 @@ setup(
         "Operating System :: OS Independent",
         "Natural Language :: English",
     ],
+    python_requires='>=3.6',
     install_requires=[
         "Click>=7.0.0",
         "rdflib>=4.0"
