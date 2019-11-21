@@ -253,7 +253,7 @@ class OdgiStore(Store):
                     yield ([(stepIri, RDF.type, FALDO.Region), None])
             if (nodeHandle == None):
                 nodeHandle = self.odgi.get_handle_of_step(stepHandle)
-            nodeIri = NodeIriRef(nodeHandle, self.odgi, self.base)
+            nodeIri = NodeIriRef(nodeHandle, odgi=self.odgi, base=self.base)
             if (predicate == VG.node or predicate == ANY and not self.odgi.get_is_reverse(nodeHandle)) and (obj == ANY or nodeIri == obj):
                 yield ([(stepIri, VG.node, nodeIri), None])
                 
@@ -312,7 +312,7 @@ class OdgiStore(Store):
         
 
     def handleToTriples(self, predicate, obj, nodeHandle):
-        nodeIri = NodeIriRef(nodeHandle, self.odgi, self.base)
+        nodeIri = NodeIriRef(nodeHandle, odgi=self.odgi, base=self.base)
         
         if (predicate == RDF.value or predicate == ANY):
             seqValue = rdflib.term.Literal(self.odgi.get_sequence(nodeHandle))
@@ -326,10 +326,10 @@ class OdgiStore(Store):
         if predicate == ANY or (predicate in nodeRelatedPredicates):
             toNodeHandles = []
             self.odgi.follow_edges(nodeHandle, False, CollectEdges(toNodeHandles));
-            nodeIri = NodeIriRef(nodeHandle, self.odgi, self.base)
+            nodeIri = NodeIriRef(nodeHandle, odgi=self.odgi, base=self.base)
             for edge in toNodeHandles:
                 
-                otherIri = NodeIriRef(edge, self.odgi, self.base)
+                otherIri = NodeIriRef(edge, odgi=self.odgi, base=self.base)
                 
                 if (obj == ANY or otherIri == obj):
                     nodeIsReverse = self.odgi.get_is_reverse(nodeHandle);
