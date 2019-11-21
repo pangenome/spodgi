@@ -14,8 +14,8 @@ from rdflib.term import URIRef
 __all__ = [
     'NodeIriRef',
     'StepIriRef',
-    'StepIriEndRef',
-    'StepIriBeginRef',
+    'StepEndIriRef',
+    'StepBeginIriRef',
 ]
 
 class StepIriRef(URIRef):
@@ -191,7 +191,7 @@ class StepBeginIriRef(URIRef):
         return self.unicode()
     
     def __repr__(self):
-        return 'odgi.StepIriBeginRef(\''+self.unicode()+'\')'
+        return 'odgi.StepBeginIriRef(\''+self.unicode()+'\')'
 
     def __hash__(self):
         return hash(self._stepIri)
@@ -252,7 +252,7 @@ class StepEndIriRef(URIRef):
         return self.unicode()
     
     def __repr__(self):
-        return 'odgi.StepIriEndRef(\''+self.unicode()+'\')'
+        return 'odgi.StepEndIriRef(\''+self.unicode()+'\')'
 
     def __hash__(self):
         return hash(self._stepIri)

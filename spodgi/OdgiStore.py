@@ -8,7 +8,7 @@ from rdflib.term import Literal
 from rdflib import Graph
 from rdflib import plugin
 from itertools import chain
-from spodgi.terms import StepIriRef, NodeIriRef, StepIriBeginRef, StepEndIriRef
+from spodgi.term import StepIriRef, NodeIriRef, StepBeginIriRef, StepEndIriRef
 
 VG = Namespace('http://biohackathon.org/resource/vg#')
 FALDO = Namespace('http://biohackathon.org/resource/faldo#')
