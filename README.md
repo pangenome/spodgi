@@ -1,4 +1,7 @@
 # SpOdgi
+
+[![PyPI version](https://badge.fury.io/py/spodgi.svg)](https://badge.fury.io/py/spodgi)
+
 Use a general graph query language SPARQL to investigate genome variation graphs!
 
 Currently it exposes any [Odgi](https://github.com/vgteam/odgi) genome variation graph via SPARQL a W3C standard query language. At the moment this is read only mode, and one can not modify the graph using SPARQL update yet.
