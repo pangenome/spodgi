@@ -116,6 +116,8 @@ The code to access Odgi methods/objects is listed in [Odgi src pythonmodule.cpp]
 
 ## RDFLib 4.x
 
+There is a coming RDFLib 5.x this code is not at all tested on it.
+
 ## Python3 Generators
 
 We use python generators to allow the RDFLib to lazily evaluate the queries.
