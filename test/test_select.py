@@ -44,3 +44,14 @@ def test_select_specific_step():
         
     spodgi.close()
     assert True
+
+def test_select_specific_sequence():
+    plugin.register('OdgiStore', Store,'spodgi.OdgiStore', 'OdgiStore')
+    s = plugin.get('OdgiStore', Store)(base="http://example.org/test/")
+    spodgi = Graph(store=s)
+    spodgi.open('./test/t.odgi', create=False)
+    for r in spodgi.query('SELECT ?sequence WHERE {<node/2> rdf:value ?sequence}'):
+        assert r[0].value == 'A'
+        
+    spodgi.close()
+    assert True

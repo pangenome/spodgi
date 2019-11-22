@@ -16,7 +16,7 @@ FALDO = Namespace('http://biohackathon.org/resource/faldo#')
 knownTypes = [VG.Node, VG.Path, VG.Step, FALDO.Region, FALDO.ExactPosition, FALDO.Position]
 knownPredicates = [RDF.value, VG.rank, VG.position, VG.step, VG.path, VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.links, VG.reverseOfNode, VG.node, FALDO.begin, FALDO.end, FALDO.reference, FALDO.position]
 nodeRelatedPredicates = [VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.links, RDF.value]
-stepAssociatedTypes = [FALDO.Region, FALDO.ExactPosition, FALDO.Position]
+stepAssociatedTypes = [FALDO.Region, FALDO.ExactPosition, FALDO.Position, VG.Step]
 stepAssociatedPredicates = [VG.rank, VG.position, VG.path, VG.node, VG.reverseOfNode, FALDO.begin, FALDO.end, FALDO.reference, FALDO.position]
 
 __all__ = [ 'OdgiStore' ]

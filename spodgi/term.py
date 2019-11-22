@@ -89,7 +89,7 @@ class StepIriRef(URIRef):
 class NodeIriRef(URIRef):
     __slots__ = ("_nodeHandle", "_base", "_odgi")
     
-    def __new__(cls, nodeHandle, base, odgi):
+    def __new__(cls, nodeHandle, base=None, odgi=None):
          inst =  str.__new__(cls)
          inst._nodeHandle = nodeHandle
          inst._base = base
@@ -98,7 +98,7 @@ class NodeIriRef(URIRef):
       
     def __eq__(self, other):
         if type(self) == type(other):
-            return self._odgi.get_id(self._nodeHandle) == self._odgi.get_id(other._nodeHandle) and self._base == other._base
+            return self._odgi.get_id(self._nodeHandle) == other._odgi.get_id(other._nodeHandle) and self._base == other._base
         elif (type(other) == URIRef):
             return URIRef(self.unicode()) == other
         else:
@@ -125,7 +125,8 @@ class NodeIriRef(URIRef):
         return self.unicode()
         
     def unicode(self):
-        return f'{self._base}{self._odgi.get_id(self._nodeHandle)}'
+        nid = self._odgi.get_id(self._nodeHandle);
+        return f'{self._base}{nid}'
     
     def __str__(self):
         return self.unicode()
