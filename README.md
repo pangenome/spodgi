@@ -117,9 +117,10 @@ Then you can use the setup.py to install SpOdgi.
 
 The code to access Odgi methods/objects is listed in [Odgi src pythonmodule.cpp](https://github.com/vgteam/odgi/blob/master/src/pythonmodule.cpp)
 
-## RDFLib 4.x
+## RDFLib 5.x
 
-There is a coming RDFLib 5.x this code is not at all tested on it.
+There is a coming RDFLib 5.x this code is tested on it. 
+As 5.x will support federated queries it is better to use this than 4.x
 
 ## Python3 Generators
 

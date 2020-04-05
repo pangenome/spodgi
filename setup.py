@@ -3,7 +3,7 @@ import sys
 from setuptools import setup
 
 project = "spodgi"
-version = "0.0.2"
+version = "0.0.3"
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -39,7 +39,7 @@ setup(
     python_requires='>=3.6',
     install_requires=[
         "Click>=7.0.0",
-        "rdflib>=4.0"
+        "rdflib>=5.0.0RC1"
     ],
     setup_requires=[
     
