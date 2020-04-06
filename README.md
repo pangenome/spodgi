@@ -111,6 +111,14 @@ Once that is installed and build you can look into the [env.sh](/env.sh), to mak
 
 Then you can use the setup.py to install SpOdgi.
 
+## Run docker version
+
+```bash
+docker build -t spodgi .
+docker run --rm -v `pwd`/test:/usr/app/test spodgi test/t2.odgi 'ASK {<http://example.org/node/1> a <http://biohackathon.org/resource/vg#Node>}'
+docker run --rm -v `pwd`/test:/usr/app/test spodgi test/t2.odgi 'PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#> SELECT ?seq WHERE {?x rdf:value ?seq . FILTER(strlen(?seq) >5)}'
+```
+
 # Notes
 
 ## Methods in Odgi
