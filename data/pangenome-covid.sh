@@ -31,23 +31,23 @@ cat <(echo -e  "@base <$baseIri> .") \
  > ${DIR}/pangenome-covid.ttl
 
 cd $DIR
-mkdir -p INDSC
-cd INDSC
+mkdir -p insdc
+cd insdc
 wget -c -i <(grep -P "^<path\/[A-Z_0-9]+\/" $DIR/pangenome-covid.ttl | \
              cut -f 2 -d '/' | \
              sort -u | \
              xargs -I '{}' -exec echo "http://togows.org/entry/nucleotide/{}.ttl")
 cd $DIR
-rapper -i turtle -o turtle <(cat $DIR/INDSC/*.ttl) > $DIR/indsc.ttl
+rapper -i turtle -o turtle <(cat $DIR/insdc/*.ttl) > $DIR/insdc.ttl
 for path in $(grep -P "^<path\/[A-Z_0-9]+\/" $DIR/pangenome-covid.ttl | \
              cut -f 2 -d '/' | \
              sort -u )
 do
     echo $path
-    sequence=$(grep -m 1 -oP "$path\.\d+#sequence" $DIR/indsc.ttl)
-    sed -i "s/path\/$path/http:\/\/identifiers.org\/indsc\/$sequence/g" $DIR/pangenome-covid.ttl   
-    echo "<http://identifiers.org/indsc/$sequence> owl:sameAs <http://purl.uniprot.org/embl/$path> ." >> $DIR/pangenome-covid.ttl
+    sequence=$(grep -m 1 -oP "$path\.\d+#sequence" $DIR/insdc.ttl)
+    sed -i "s/path\/$path/http:\/\/identifiers.org\/insdc\/$sequence/g" $DIR/pangenome-covid.ttl   
+    echo "<http://identifiers.org/insdc/$sequence> owl:sameAs <http://purl.uniprot.org/embl/$path> ." >> $DIR/pangenome-covid.ttl
 
-    echo "<http://purl.uniprot.org/embl/$path> owl:sameAs <http://identifiers.org/indsc/$sequence> ." >> $DIR/pangenome-covid.ttl
+    echo "<http://purl.uniprot.org/embl/$path> owl:sameAs <http://identifiers.org/insdc/$sequence> ." >> $DIR/pangenome-covid.ttl
 done
-cat $DIR/indsc.ttl >> $DIR/pangenome-covid.ttl
+cat $DIR/insdc.ttl >> $DIR/pangenome-covid.ttl
