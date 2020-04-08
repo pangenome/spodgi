@@ -47,5 +47,7 @@ do
     sequence=$(grep -m 1 -oP "$path\.\d+#sequence" $DIR/indsc.ttl)
     sed -i "s/path\/$path/http:\/\/identifiers.org\/indsc\/$sequence/g" $DIR/pangenome-covid.ttl   
     echo "<http://identifiers.org/indsc/$sequence> owl:sameAs <http://purl.uniprot.org/embl/$path> ." >> $DIR/pangenome-covid.ttl
+
+    echo "<http://purl.uniprot.org/embl/$path> owl:sameAs <http://identifiers.org/indsc/$sequence> ." >> $DIR/pangenome-covid.ttl
 done
 cat $DIR/indsc.ttl >> $DIR/pangenome-covid.ttl
