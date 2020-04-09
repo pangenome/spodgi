@@ -6,26 +6,20 @@ hints:
     dockerPull: spodgi/spodgi
 requirements:
   InlineJavascriptRequirement: {}
+  ShellCommandRequirement: {}
 inputs:
-  - id: syntax
-    type: string?
-    inputBinding:
-      prefix: --syntax
-      position: 1
   - id: odgi
     type: File
-    inputBinding:
-      position: 2
   - id: output_name
     type: string?
 
-baseCommand: odgi_to_rdf.py
+stdout: $(inputs.output_name || inputs.odgi.nameroot+'.nt.xz')
+
 arguments:
-  - valueFrom: $(inputs.output_name || inputs.odgi.nameroot+'.ttl')
-    position: 3
+  [odgi_to_rdf.py, $(inputs.odgi), "-",
+   {valueFrom: "|", shellQuote: false},
+   xz, --stdout]
 
 outputs:
   - id: rdf
-    type: File
-    outputBinding:
-      glob: $(inputs.output_name || inputs.odgi.nameroot+'.ttl')
+    type: stdout
