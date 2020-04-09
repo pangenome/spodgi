@@ -1,4 +1,4 @@
-#!/usr/bin/env cwl-runner
+#!/usr/bin/env cwl-runner 
 class: CommandLineTool
 cwlVersion: v1.1
 hints:
@@ -21,11 +21,11 @@ inputs:
 
 baseCommand: odgi_to_rdf.py
 arguments:
-  - valueFrom: $(inputs.output_name || inputs.odgi.nameroot+'.rdf')
+  - valueFrom: $(inputs.output_name || inputs.odgi.nameroot+'.ttl')
     position: 3
 
 outputs:
   - id: rdf
     type: File
     outputBinding:
-      glob: $(inputs.output_name || inputs.odgi.nameroot+'.rdf')
+      glob: $(inputs.output_name || inputs.odgi.nameroot+'.ttl')
