@@ -13,7 +13,7 @@ inputs:
   - id: output_name
     type: string?
 
-stdout: $(inputs.output_name || inputs.odgi.nameroot+'.nt.xz')
+stdout: $(inputs.output_name || inputs.odgi.nameroot+'.ttl.xz')
 
 arguments:
   [odgi_to_rdf.py, $(inputs.odgi), "-",
