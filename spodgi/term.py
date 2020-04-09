@@ -34,7 +34,7 @@ class StepIriRef(URIRef):
 
         if type(self) == type(other):
             return self._stepHandle == other._stepHandle and self._base == other._base
-        elif (type(other) == URIRef):
+        elif (isinstance(other, URIRef)):
             return URIRef(self.unicode()) == other
         else:
             return False
@@ -49,11 +49,13 @@ class StepIriRef(URIRef):
                 return False
             else:
                 return self._rank > other._rank
+        elif isinstance(other, URIRef):
+            return URIRef(self.unicode()) > other 
         else:
-            return type(self) > type(other)
+            return str(type(self)) > str(type(other))
 
     def __lt__(self, other):
-        return not self.__gt(other)
+        return not self.__gt__(other)
 
     def n3(self, namespace_manager=None):
         if namespace_manager:
@@ -180,7 +182,7 @@ class StepBeginIriRef(URIRef):
         else:
             return f'<{self.unicode()}>'
 
-    def step_handle(self):
+    def stepHandle(self):
         return self._stepIri._stepHandle
 
     def rank(self):
@@ -243,8 +245,7 @@ class StepEndIriRef(URIRef):
         else:
             return f'<{self.unicode()}>'
 
-    @property
-    def step_handle(self):
+    def stepHandle(self):
         return self._stepIri._stepHandle
 
     def rank(self):

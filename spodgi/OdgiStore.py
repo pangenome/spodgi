@@ -214,13 +214,13 @@ class OdgiStore(Store):
                                                             node_handle=node_handle,
                                                             rank=rank, position=position)
         elif type(subject) == StepIriRef:
-            yield from self.stepHandleToTriples(subject.step_handle, subject, predicate, obj, rank=subject.rank(),
+            yield from self.stepHandleToTriples(subject.stepHandle(), subject, predicate, obj, rank=subject.rank(),
                                                 position=subject.position())
         elif type(subject) == StepBeginIriRef:
-            yield from self.stepHandleToTriples(subject.step_handle, subject, predicate, obj, rank=subject.rank(),
+            yield from self.stepHandleToTriples(subject.stepHandle(), subject, predicate, obj, rank=subject.rank(),
                                                 position=subject.position())
         elif type(subject) == StepEndIriRef:
-            yield from self.stepHandleToTriples(subject.step_handle, subject, predicate, obj, rank=subject.rank(),
+            yield from self.stepHandleToTriples(subject.stepHandle(), subject, predicate, obj, rank=subject.rank(),
                                                 position=subject.position())
         else:
             subject_iri_parts = subject.toPython().split('/')
