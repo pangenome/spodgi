@@ -2,7 +2,7 @@
 class: CommandLineTool
 cwlVersion: v1.1
 hints:
-  - class: DockerRequirement
+  DockerRequirement:
     dockerPull: spodgi/spodgi
 baseCommand: sparql_odgi
 arguments:

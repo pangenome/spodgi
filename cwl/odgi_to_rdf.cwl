@@ -2,20 +2,28 @@
 class: CommandLineTool
 cwlVersion: v1.1
 hints:
-  - class: DockerRequirement
+  DockerRequirement:
     dockerPull: spodgi/spodgi
-baseCommand: odgi_to_rdf
-arguments:
-  - --syntax=$(inputs.syntax)
-  - $(inputs.odgi)
-  - $(inputs.output_name)
+requirements:
+  InlineJavascriptRequirement: {}
 inputs:
   - id: syntax
-    type: string
+    type: string?
+    inputBinding:
+      prefix: --syntax
+      position: 1
   - id: odgi
     type: File
+    inputBinding:
+      position: 2
   - id: output_name
-    type: string
+    type: string?
+
+baseCommand: odgi_to_rdf.py
+arguments:
+  - valueFrom: $(inputs.output_name || inputs.odgi.nameroot+'.rdf')
+    position: 3
+
 outputs:
   - id: rdf
     type: File
