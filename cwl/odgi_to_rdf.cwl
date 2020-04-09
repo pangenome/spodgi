@@ -28,4 +28,4 @@ outputs:
   - id: rdf
     type: File
     outputBinding:
-      glob: "$(inputs.output_name)"
+      glob: $(inputs.output_name || inputs.odgi.nameroot+'.rdf')

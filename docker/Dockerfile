@@ -24,7 +24,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
     && cp bin/odgi /usr/bin
 
 WORKDIR "/var/lib/odgi"
-ENV PYTHONPATH=:/var/lib/odgi
+ENV PYTHONPATH=:/var/lib/odgi/odgi/lib
 RUN DEBIAN_FRONTEND=noninteractive \
     && git clone https://github.com/pangenome/spodgi \
     && cd spodgi \
