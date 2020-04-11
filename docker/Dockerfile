@@ -16,12 +16,17 @@ RUN DEBIAN_FRONTEND=noninteractive \
       zlib1g-dev \
     && rm -fr /var/lib/apt/lists/* \
     && update-ca-certificates \
-    && git clone --recursive https://github.com/vgteam/odgi.git \
+    && git clone --depth 4 --shallow-submodules --recursive https://github.com/vgteam/odgi.git \
     && cd odgi \
     && git checkout "${ODGI_COMMIT}" \
     && cmake -H. -Bbuild \
     && cmake --build build -- -j 3 \
-    && cp bin/odgi /usr/bin
+    && rm -rf deps \
+    && rm -rf build \
+    && rm -rf lib/*.a \
+    && cp bin/odgi /usr/bin \
+    && apt-get remove -y --autoremove  build-essential cmake \
+    && apt-get clean
 
 WORKDIR "/var/lib/odgi"
 ENV PYTHONPATH=:/var/lib/odgi/odgi/lib
