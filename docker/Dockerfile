@@ -16,11 +16,11 @@ RUN DEBIAN_FRONTEND=noninteractive \
       zlib1g-dev \
     && rm -fr /var/lib/apt/lists/* \
     && update-ca-certificates \
-    && git clone --depth 4 --shallow-submodules --recursive https://github.com/vgteam/odgi.git \
+    && git clone --depth 1 --shallow-submodules --recursive https://github.com/vgteam/odgi.git \
     && cd odgi \
     && git checkout "${ODGI_COMMIT}" \
-    && cmake -H. -Bbuild \
-    && cmake --build build -- -j 3 \
+    && cmake -DBUILD_STATIC=0 -H. -Bbuild \
+    && cmake --build build -- -j $(nproc) \
     && rm -rf deps \
     && rm -rf build \
     && rm -rf lib/*.a \
