@@ -36,29 +36,29 @@ class StepIriRef(URIRef):
     def __eq__(self, other):
 
         if StepIriRef == type(other):
-            return self._stepHandle == other.step_handle() and self._base == other.base()
+            return self._stepHandle == other.step_handle() and self.position() == other.position()
         elif isinstance(other, URIRef):
             return URIRef(self.unicode()) == other
         else:
             return False
 
-    def __gt__(self, other):
-        if other is None:
-            return True  # everything bigger than None
-        elif StepIriRef == type(other):
-            if self._base > other.base():
-                return True
-            elif self._base < other.base():
-                return False
-            else:
-                return self._rank > other.rank()
-        elif isinstance(other, URIRef):
-            return URIRef(self.unicode()) > other
-        else:
-            return str(type(self)) > str(type(other))
-
-    def __lt__(self, other):
-        return not self.__gt__(other)
+    # def __gt__(self, other):
+    #     if other is None:
+    #         return True  # everything bigger than None
+    #     elif StepIriRef == type(other):
+    #         if self._base > other.base():
+    #             return True
+    #         elif self._base < other.base():
+    #             return False
+    #         else:
+    #             return self._rank > other.rank()
+    #     elif isinstance(other, URIRef):
+    #         return URIRef(self.unicode()) > other
+    #     else:
+    #         return str(type(self)) > str(type(other))
+    #
+    # def __lt__(self, other):
+    #     return not self.__gt__(other)
 
     def n3(self, namespace_manager=None):
         if namespace_manager:
@@ -102,7 +102,7 @@ class StepIriRef(URIRef):
         return 'odgi(\'' + self.unicode() + '\')'
 
     def __hash__(self):
-        return hash(self._stepHandle)
+        return hash(self.unicode())
 
 
 class NodeIriRef(URIRef):
@@ -116,9 +116,8 @@ class NodeIriRef(URIRef):
         return inst
 
     def __eq__(self, other):
-        if type(self) == type(other):
-            return self._odgi.get_id(self._nodeHandle) == other.odgi().get_id(
-                other.node_handle()) and self._base == other.base()
+        if NodeIriRef == type(other):
+            return self._nodeHandle == other.node_handle() and self._base == other.base()
         elif type(other) == URIRef:
             return URIRef(self.unicode()) == other
         else:
@@ -157,7 +156,7 @@ class NodeIriRef(URIRef):
         return 'odgi.NodeIriRef(\'' + self.unicode() + '\')'
 
     def __hash__(self):
-        return self._odgi.get_id(self._nodeHandle)
+        return hash(self.unicode())
 
     def node_handle(self):
         return self._nodeHandle
@@ -183,20 +182,16 @@ class StepBeginIriRef(URIRef):
 
     def __eq__(self, other):
 
-        if type(self) == type(other):
-            return self._stepIri == other.step_iri();
-        elif type(other) == URIRef:
+        if StepBeginIriRef == type(other):
+            res = self.step_iri().path() == other.step_iri().path() and self.position() == other.position()
+            return res
+        elif StepEndIriRef == type(other):
+            res = self.step_iri().path() == other.step_iri().path() and self.position() == other.position()
+            return res
+        elif isinstance(other, URIRef):
             return URIRef(self.unicode()) == other
         else:
             return False
-
-    def __gt__(self, other):
-        if other is None:
-            return True  # everything bigger than None
-        elif type(self) == type(other):
-            return self._stepIri > other.step_iri()
-        else:
-            return type(self) > type(other)
 
     def n3(self, namespace_manager=None):
         if namespace_manager:
@@ -238,7 +233,7 @@ class StepBeginIriRef(URIRef):
         return 'odgi.StepBeginIriRef(\'' + self.unicode() + '\')'
 
     def __hash__(self):
-        return hash(self._stepIri)
+        return hash(self.unicode())
 
 
 """
@@ -257,22 +252,26 @@ class StepEndIriRef(URIRef):
 
     def __eq__(self, other):
 
-        if type(self) == type(other):
-            return self._stepIri == other.step_iri()
-        elif type(other) == URIRef:
+        if StepEndIriRef == type(other):
+            res = self.step_iri().path() == other.step_iri().path() and self.position() == other.position();
+            return res
+        elif StepBeginIriRef == type(other):
+            res = self.step_iri().path() == other.step_iri().path() and self.position() == other.position();
+            return res
+        elif isinstance(other, URIRef):
             return URIRef(self.unicode()) == other
         else:
             return False
-
-    def __gt__(self, other):
-        if other is None:
-            return True  # everything bigger than None
-        elif StepEndIriRef == type(other):
-            return self._stepIri > other.step_iri()
-        elif isinstance(other, URIRef):
-            return self.unicode() > other.unicode()
-        else:
-            return StepEndIriRef > type(other)
+    #
+    # def __gt__(self, other):
+    #     if other is None:
+    #         return True  # everything bigger than None
+    #     elif StepEndIriRef == type(other):
+    #         return self._stepIri > other.step_iri()
+    #     elif isinstance(other, URIRef):
+    #         return self.unicode() > other.unicode()
+    #     else:
+    #         return StepEndIriRef > type(other)
 
     def n3(self, namespace_manager=None):
         if namespace_manager:
@@ -316,7 +315,7 @@ class StepEndIriRef(URIRef):
         return 'odgi.StepEndIriRef(\'' + self.unicode() + '\')'
 
     def __hash__(self):
-        return hash(self._stepIri)
+        return hash(self.unicode())
 
 
 class PathIriRef(URIRef):
@@ -330,22 +329,22 @@ class PathIriRef(URIRef):
 
     def __eq__(self, other):
 
-        if type(self) == type(other):
-            return self._uri == other.unicode()
-        elif type(other) == URIRef:
+        if PathIriRef == type(other):
+            return self._pathHandle == other.path()
+        elif isinstance(other, URIRef):
             return URIRef(self.unicode()) == other
         else:
             return False
 
-    def __gt__(self, other):
-        if other is None:
-            return True  # everything bigger than None
-        elif type(self) == type(other):
-            return self._uri > other.uri
-        elif isinstance(other, URIRef):
-            return self.unicode() > other.unicode()
-        else:
-            return PathIriRef > type(other)
+    # def __gt__(self, other):
+    #     if other is None:
+    #         return True  # everything bigger than None
+    #     elif type(self) == type(other):
+    #         return self._uri > other.uri
+    #     elif isinstance(other, URIRef):
+    #         return self.unicode() > other.unicode()
+    #     else:
+    #         return PathIriRef > type(other)
 
     def n3(self, namespace_manager=None):
         if namespace_manager:
@@ -369,7 +368,7 @@ class PathIriRef(URIRef):
         return 'odgi.PathIriRef(\'' + self.unicode() + '\')'
 
     def __hash__(self):
-        return hash(self._pathHandle)
+        return hash(self.unicode())
 
     def uri(self):
         return self._uri

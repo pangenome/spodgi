@@ -11,12 +11,14 @@ from itertools import chain
 from spodgi.term import StepIriRef, NodeIriRef, StepBeginIriRef, StepEndIriRef, PathIriRef
 from urllib.parse import urlparse
 from typing import List
+import re
+
 
 VG = Namespace('http://biohackathon.org/resource/vg#')
 FALDO = Namespace('http://biohackathon.org/resource/faldo#')
 
 knownTypes = [VG.Node, VG.Path, VG.Step, FALDO.Region, FALDO.ExactPosition, FALDO.Position]
-knownPredicates = [RDF.value, VG.rank, VG.position, VG.step, VG.path, VG.linksForwardToForward,
+knownPredicates = [RDF.value, VG.rank, VG.position, VG.path, VG.linksForwardToForward,
                    VG.linksForwardToReverse, VG.linksReverseToForward, VG.linksReverseToReverse, VG.links,
                    VG.reverseOfNode, VG.node, FALDO.begin, FALDO.end, FALDO.reference, FALDO.position]
 nodeRelatedPredicates = [VG.linksForwardToForward, VG.linksForwardToReverse, VG.linksReverseToForward,
@@ -37,6 +39,7 @@ class CollectEdges:
 
 
 class CollectPaths:
+    path = re.compile('https?://')
     def __init__(self, paths: List[PathIriRef], odgi_graph: odgi, base: str):
         self.known_paths = paths
         self.odgi_graph = odgi_graph
@@ -45,10 +48,13 @@ class CollectPaths:
     def __call__(self, path_handle):
         name = self.odgi_graph.get_path_name(path_handle)
         try:
-            result = urlparse(name)
-            self.known_paths.append(PathIriRef(name, path_handle))
+            if self.path.match(name):
+                result = urlparse(name)
+                self.known_paths.append(PathIriRef(name, path_handle))
+            else:
+                self.known_paths.append(PathIriRef(f'{self.base}path/{name}', path_handle))
         except ValueError:
-            self.known_paths.append(PathIriRef(f'{self.base}/path/{name}', path_handle))
+            self.known_paths.append(PathIriRef(f'{self.base}path/{name}', path_handle))
 
 
 class OdgiStore(Store):
@@ -113,9 +119,7 @@ class OdgiStore(Store):
             elif type(subject) == StepBeginIriRef or type(subject) == StepEndIriRef:
                 return self.steps(subject, predicate, obj)
             elif type(subject) == NodeIriRef:
-                handle = subject.node_handle();
-                return chain(self.handle_to_triples(predicate, obj, handle),
-                             self.handle_to_edge_triples(subject, predicate, obj))
+                return self.nodes(subject, predicate, obj)
             elif type(subject) == StepIriRef:
                 return self.steps(subject, predicate, obj)
 
@@ -166,8 +170,11 @@ class OdgiStore(Store):
                 yield [(subject, RDF.type, VG.Node), None]
             elif predicate is None and obj == VG.Node and is_node_iri:
                 yield [(subject, RDF.type, VG.Node), None]
-            elif type(subject) == NodeIriRef:
-                yield from self.handle_to_triples(predicate, obj, subject.nodeHandle())
+            elif predicate is None and is_node_iri:
+                yield [(subject, RDF.type, VG.Node), None]
+
+            if type(subject) == NodeIriRef:
+                yield from self.handle_to_triples(predicate, obj, subject.node_handle())
                 yield from self.handle_to_edge_triples(subject, predicate, obj)
             elif is_node_iri:
                 subject_iri_parts = subject.toPython().split('/')
@@ -175,13 +182,10 @@ class OdgiStore(Store):
                 ns = NodeIriRef(nh,self.base, self.odgi_graph)
                 yield from self.handle_to_triples(predicate, obj, nh)
                 yield from self.handle_to_edge_triples(ns, predicate, obj)
-            else:
-                return self.__emptygen()
         else:
             for handle in self.handles():
                 ns = NodeIriRef (handle, self.base, self.odgi_graph)
-                yield from self.handle_to_edge_triples(ns, predicate, obj)
-                yield from self.handle_to_triples(predicate, obj, handle)
+                yield from self.nodes(ns, predicate, obj)
 
     def is_node_iri_in_graph(self, iri: URIRef):
         if type(iri) == NodeIriRef:
@@ -292,9 +296,7 @@ class OdgiStore(Store):
 
             if predicate == VG.path or predicate is None:
                 path = self.odgi_graph.get_path_handle_of_step(step_handle)
-                path_name = self.odgi_graph.get_path_name(path)
-
-                path_iri = self.pathNS.term(f'{path_name}')
+                path_iri = self.find_path_iri_by_handle(path)
                 if obj is None or path_iri == obj:
                     yield [(step_iri, VG.path, path_iri), None]
 
