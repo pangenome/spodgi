@@ -4,11 +4,13 @@ import rdflib
 import io
 from rdflib.namespace import RDF, RDFS, NamespaceManager, Namespace
 from rdflib.store import Store
-from rdflib.term import Literal
+from rdflib.term import Literal, URIRef, Identifier, Node, BNode
 from rdflib import Graph
 from rdflib import plugin
 from itertools import chain
-from spodgi.term import StepIriRef, NodeIriRef, StepBeginIriRef, StepEndIriRef
+from spodgi.term import StepIriRef, NodeIriRef, StepBeginIriRef, StepEndIriRef, PathIriRef
+from urllib.parse import urlparse
+from typing import List
 
 VG = Namespace('http://biohackathon.org/resource/vg#')
 FALDO = Namespace('http://biohackathon.org/resource/faldo#')
@@ -26,48 +28,27 @@ stepAssociatedPredicates = [VG.rank, VG.position, VG.path, VG.node, VG.reverseOf
 __all__ = ['OdgiStore']
 
 
-# This is the code that can be passed into the C++ handle graph.
-# However, my worry is how to change this so that this can be an generator
-# on the python side?
-class PathToTriples:
-    def __init__(self, og, pathNS, subject, predicate, obj, li):
-        self.odgi = og
-        self.pathNS = pathNS
-        self.subject = subject
-        self.predicate = predicate
-        self.obj = obj
-        self.li = li;
-
-    # Generate the triples for the pathHandles that match the triple_pattern passed in
-    def __call__(self, pathHandle):
-        pathName = self.odgi.get_path_name(pathHandle);
-        pathIri = self.pathNS.term(f'{pathName}')
-        # if any path is ok or this path then generate triples else skip.
-        if self.subject is None or self.subject == pathIri:
-            # given at RDF.type and the VG.Path as obj we can generate the matching triple
-            if (self.predicate is None or self.predicate == RDF.type) and (self.obj is None or self.obj == VG.Path):
-                self.li.append([(pathIri, RDF.type, VG.Path), None])
-            if self.predicate is None or self.predicate == RDFS.label:
-                label = rdflib.term.Literal(pathName)
-                # if the label does not match the obj we should generate a triple here
-                if self.obj is None or self.obj == label:
-                    self.li.append([(pathIri, RDFS.label, label), None])
-
-
 class CollectEdges:
     def __init__(self, edges):
         self.edges = edges
 
-    def __call__(self, edgeHandle):
-        self.edges.append(edgeHandle)
+    def __call__(self, edge_handle):
+        self.edges.append(edge_handle)
 
 
 class CollectPaths:
-    def __init__(self, paths):
-        self.paths = paths
+    def __init__(self, paths: List[PathIriRef], odgi_graph: odgi, base: str):
+        self.known_paths = paths
+        self.odgi_graph = odgi_graph
+        self.base = base
 
-    def __call__(self, pathHandle):
-        self.paths.append(pathHandle)
+    def __call__(self, path_handle):
+        name = self.odgi_graph.get_path_name(path_handle)
+        try:
+            result = urlparse(name)
+            self.known_paths.append(PathIriRef(name, path_handle))
+        except ValueError:
+            self.known_paths.append(PathIriRef(f'{self.base}/path/{name}', path_handle))
 
 
 class OdgiStore(Store):
@@ -78,6 +59,11 @@ class OdgiStore(Store):
     
     Authors: Jerven Bolleman
     """
+    odgi_graph: odgi
+
+    knownPaths: List[PathIriRef] = []
+    namespace_manager: NamespaceManager
+    base: str
 
     def __init__(self, configuration=None, identifier=None, base=None):
         super(OdgiStore, self).__init__(configuration)
@@ -94,18 +80,23 @@ class OdgiStore(Store):
         self.stepNS = Namespace(f'{self.base}step/')
         self.bind('path', self.pathNS)
         self.bind('step', self.stepNS)
-        self.odgi = None
+        self.odgi_graph = None
 
-    def open(self, odgifile, create=False):
+    def open(self, odgi_file, create=False):
         og = odgi.graph()
-        ogf = og.load(odgifile)
-        self.odgi = og
+        ogf = og.load(odgi_file)
+        self.odgi_graph = og
+        self.odgi_graph.for_each_path_handle(CollectPaths(self.knownPaths, self.odgi_graph, self.base))
 
     def triples(self, triple_pattern, context=None):
         """A generator over all the triples matching """
         subject, predicate, obj = triple_pattern
+
+        """we have no bnodes in our data"""
+        if isinstance(subject, BNode) or isinstance(object, BNode):
+            return self.__emptygen()
         if RDF.type == predicate and obj is not None:
-            return self.typeTriples(subject, predicate, obj)
+            return self.type_triples(subject, predicate, obj)
         elif predicate in nodeRelatedPredicates:
             return self.nodes(subject, predicate, obj)
         elif predicate in stepAssociatedPredicates:
@@ -113,26 +104,38 @@ class OdgiStore(Store):
         elif RDFS.label == predicate:
             return self.paths(subject, predicate, obj)
         elif subject is None and predicate is None and obj is None:
-            return chain(self.__allPredicates(), self.__allTypes())
+            return chain(self.nodes(subject, predicate, obj),
+                         self.steps(subject, predicate, obj),
+                         self.paths(subject, predicate, obj))
         elif subject is not None:
-            subjectIriParts = subject.toPython().split('/')
-            if 'node' == subjectIriParts[-2] and self.odgi.has_node(int(subjectIriParts[-1])):
-                handle = self.odgi.get_handle(int(subjectIriParts[-1]))
-                return chain(self.handleToTriples(predicate, obj, handle),
-                             self.handleToEdgeTriples(subject, predicate, obj, handle))
-            elif 'path' == subjectIriParts[-4] and 'step' == subjectIriParts[-2]:
-                return self.steps(subject, predicate, obj)
-            elif 'path' == subjectIriParts[-2]:
+            if type(subject) == PathIriRef:
                 return self.paths(subject, predicate, obj)
             elif type(subject) == StepBeginIriRef or type(subject) == StepEndIriRef:
                 return self.steps(subject, predicate, obj)
+            elif type(subject) == NodeIriRef:
+                handle = subject.node_handle();
+                return chain(self.handle_to_triples(predicate, obj, handle),
+                             self.handle_to_edge_triples(subject, predicate, obj))
+            elif type(subject) == StepIriRef:
+                return self.steps(subject, predicate, obj)
+
+            subject_iri_parts = subject.toPython().split('/')
+            if 'node' == subject_iri_parts[-2] and self.odgi_graph.has_node(int(subject_iri_parts[-1])):
+                handle = self.odgi_graph.get_handle(int(subject_iri_parts[-1]))
+                ns = NodeIriRef(handle, self.odgi_graph, self.base)
+                return chain(self.handle_to_triples(predicate, obj, handle),
+                             self.handle_to_edge_triples(ns, predicate, obj))
+            elif 'path' == subject_iri_parts[-4] and 'step' == subject_iri_parts[-2]:
+                return self.steps(subject, predicate, obj)
+            elif 'path' == subject_iri_parts[-2]:
+                return self.paths(subject, predicate, obj)
             else:
                 return self.__emptygen()
         else:
             return self.__emptygen()
 
     # For the known types we can shortcut evaluation in many cases
-    def typeTriples(self, subject, predicate, obj):
+    def type_triples(self, subject, predicate, obj):
         if VG.Node == obj:
             return self.nodes(subject, predicate, obj)
         elif VG.Path == obj:
@@ -142,13 +145,13 @@ class OdgiStore(Store):
         else:
             return self.__emptygen()
 
-    def __allTypes(self):
+    def __all_types(self):
         for typ in knownTypes:
             yield from self.triples((None, RDF.type, typ))
 
-    def __allPredicates(self):
-        for pred in knownPredicates:
-            yield from self.triples((None, pred, None))
+    def __all_predicates(self):
+        for predicate in knownPredicates:
+            yield from self.triples((None, predicate, None))
 
     @staticmethod
     def __emptygen():
@@ -156,212 +159,214 @@ class OdgiStore(Store):
         if False:
             yield
 
-    def nodes(self, subject, predicate, obj):
+    def nodes(self, subject: Identifier, predicate: URIRef, obj: Node):
         if subject is not None:
-            isNodeIri = self.isNodeIriInGraph(subject)
-
-            if predicate == RDF.type and obj == VG.Node and isNodeIri:
+            is_node_iri = self.is_node_iri_in_graph(subject)
+            if predicate == RDF.type and obj == VG.Node and is_node_iri:
                 yield [(subject, RDF.type, VG.Node), None]
-            elif predicate is None and obj == VG.Node and isNodeIri:
+            elif predicate is None and obj == VG.Node and is_node_iri:
                 yield [(subject, RDF.type, VG.Node), None]
-            elif (type(subject) == NodeIriRef):
-                yield from self.handleToTriples(predicate, obj, subject._nodeHandle)
-                yield from self.handleToEdgeTriples(subject, predicate, obj, subject._nodeHandle)
-            elif isNodeIri:
-                subjectIriParts = subject.toPython().split('/')
-                nh = self.odgi.get_handle(int(subjectIriParts[-1]))
-                yield from self.handleToTriples(predicate, obj, nh)
-                yield from self.handleToEdgeTriples(subject, predicate, obj, nh)
+            elif type(subject) == NodeIriRef:
+                yield from self.handle_to_triples(predicate, obj, subject.nodeHandle())
+                yield from self.handle_to_edge_triples(subject, predicate, obj)
+            elif is_node_iri:
+                subject_iri_parts = subject.toPython().split('/')
+                nh = self.odgi_graph.get_handle(int(subject_iri_parts[-1]))
+                ns = NodeIriRef(nh,self.base, self.odgi_graph)
+                yield from self.handle_to_triples(predicate, obj, nh)
+                yield from self.handle_to_edge_triples(ns, predicate, obj)
             else:
                 return self.__emptygen()
         else:
             for handle in self.handles():
-                yield from self.handleToEdgeTriples(subject, predicate, obj, handle)
-                yield from self.handleToTriples(predicate, obj, handle)
+                ns = NodeIriRef (handle, self.base, self.odgi_graph)
+                yield from self.handle_to_edge_triples(ns, predicate, obj)
+                yield from self.handle_to_triples(predicate, obj, handle)
 
-    def isNodeIriInGraph(self, iri):
+    def is_node_iri_in_graph(self, iri: URIRef):
         if type(iri) == NodeIriRef:
             return True
         else:
             iri_parts = iri.toPython().split('/')
-            return 'node' == iri_parts[-2] and self.odgi.has_node(int(iri_parts[-1]))
+            return 'node' == iri_parts[-2] and self.odgi_graph.has_node(int(iri_parts[-1]))
 
-    def paths(self, subject, predicate, obj):
-        li = []
-        tt = PathToTriples(self.odgi, self.pathNS, subject, predicate, obj, li)
-        self.odgi.for_each_path_handle(tt)
-        for p in li:
-            yield p
+    def paths(self, subject: Identifier, predicate: URIRef, obj: Node):
+        for p in self.knownPaths:
+            if subject is None or p == subject:
+                # given at RDF.type and the VG.Path as obj we can generate the matching triple
+                if (predicate is None or predicate == RDF.type) and (obj is None or obj == VG.Path):
+                    yield [(p, RDF.type, VG.Path), None]
 
-    def steps(self, subject, predicate, obj):
+    def steps(self, subject: Identifier, predicate: URIRef, obj: Node):
 
         if subject is None:
-            for pathHandle in self.pathHandles():
-                if not self.odgi.is_empty(pathHandle):
+            for pathRef in self.knownPaths:
+                if not self.odgi_graph.is_empty(pathRef.path()):
                     rank = 1
                     position = 1
-                    step_handle = self.odgi.path_begin(pathHandle)
-                    node_handle = self.odgi.get_handle_of_step(step_handle)
-                    yield from self.stepHandleToTriples(step_handle, subject, predicate, obj, node_handle=node_handle,
-                                                        rank=rank, position=position)
+                    step_handle = self.odgi_graph.path_begin(pathRef.path())
+                    node_handle = self.odgi_graph.get_handle_of_step(step_handle)
+                    yield from self.step_handle_to_triples(step_handle, subject, predicate, obj, node_handle=node_handle,
+                                                           rank=rank, position=position)
 
-                    while self.odgi.has_next_step(step_handle):
-                        step_handle = self.odgi.get_next_step(step_handle)
-                        position = position + self.odgi.get_length(node_handle)
-                        node_handle = self.odgi.get_handle_of_step(step_handle)
+                    while self.odgi_graph.has_next_step(step_handle):
+                        step_handle = self.odgi_graph.get_next_step(step_handle)
+                        position = position + self.odgi_graph.get_length(node_handle)
+                        node_handle = self.odgi_graph.get_handle_of_step(step_handle)
                         rank = rank + 1
-                        yield from self.stepHandleToTriples(step_handle, subject, predicate, obj,
-                                                            node_handle=node_handle,
-                                                            rank=rank, position=position)
+                        yield from self.step_handle_to_triples(step_handle, subject, predicate, obj,
+                                                               node_handle=node_handle,
+                                                               rank=rank, position=position)
         elif type(subject) == StepIriRef:
-            yield from self.stepHandleToTriples(subject.stepHandle(), subject, predicate, obj, rank=subject.rank(),
-                                                position=subject.position())
+            yield from self.step_handle_to_triples(subject.step_handle(), subject, predicate, obj, rank=subject.rank(),
+                                                   position=subject.position())
         elif type(subject) == StepBeginIriRef:
-            yield from self.stepHandleToTriples(subject.stepHandle(), subject, predicate, obj, rank=subject.rank(),
-                                                position=subject.position())
+            yield from self.step_handle_to_triples(subject.step_handle(), subject, predicate, obj, rank=subject.rank(),
+                                                   position=subject.position())
         elif type(subject) == StepEndIriRef:
-            yield from self.stepHandleToTriples(subject.stepHandle(), subject, predicate, obj, rank=subject.rank(),
-                                                position=subject.position())
+            yield from self.step_handle_to_triples(subject.step_handle(), subject, predicate, obj, rank=subject.rank(),
+                                                   position=subject.position())
         else:
             subject_iri_parts = subject.toPython().split('/')
             if 'path' == subject_iri_parts[-4] and 'step' == subject_iri_parts[-2]:
                 path_name = subject_iri_parts[-3];
-                pathHandle = self.odgi.get_path_handle(path_name)
-                stepRank = int(subject_iri_parts[-1]);
+                path_handle = self.odgi_graph.get_path_handle(path_name)
+                step_rank = int(subject_iri_parts[-1]);
 
-                if not self.odgi.is_empty(pathHandle):
+                if not self.odgi_graph.is_empty(path_handle):
                     rank = 1
                     position = 1
-                    step_handle = self.odgi.path_begin(pathHandle)
-                    node_handle = self.odgi.get_handle_of_step(step_handle)
-                    while rank != stepRank and self.odgi.has_next_step(step_handle):
+                    step_handle = self.odgi_graph.path_begin(path_handle)
+                    node_handle = self.odgi_graph.get_handle_of_step(step_handle)
+                    while rank != step_rank and self.odgi_graph.has_next_step(step_handle):
                         rank = rank + 1
-                        position = position + self.odgi.get_length(node_handle)
-                        step_handle = self.odgi.get_next_step(step_handle)
-                        node_handle = self.odgi.get_handle_of_step(step_handle)
-                    yield from self.stepHandleToTriples(step_handle, subject, predicate, obj, node_handle=node_handle,
-                                                        rank=rank, position=position)
+                        position = position + self.odgi_graph.get_length(node_handle)
+                        step_handle = self.odgi_graph.get_next_step(step_handle)
+                        node_handle = self.odgi_graph.get_handle_of_step(step_handle)
+                    yield from self.step_handle_to_triples(step_handle, subject, predicate, obj, node_handle=node_handle,
+                                                           rank=rank, position=position)
 
     # else:
     # for nodeHandle in self.handles():
-    # for stepHandle in self.odgi.steps_of_handle(nodeHandle, False):
-    # yield from self.stepHandleToTriples(stepHandle, subject, predicate, obj, nodeHandle=nodeHandle)
-    def stepHandleToTriples(self, stepHandle, subject, predicate, obj, node_handle=None, rank=None, position=None):
+    # for step_handle in self.odgi_graph.steps_of_handle(nodeHandle, False):
+    # yield from self.stepHandleToTriples(step_handle, subject, predicate, obj, nodeHandle=nodeHandle)
+    def step_handle_to_triples(self,
+                               step_handle: odgi.step_handle, subject: Identifier, predicate: URIRef, obj: Node,
+                               node_handle: odgi.handle = None, rank=None, position=None):
 
         if type(subject) == StepIriRef:
             step_iri = subject
         elif type(subject) == StepBeginIriRef:
-            step_iri = subject._stepIri
+            step_iri = subject.step_iri()
         elif type(subject) == StepEndIriRef:
-            step_iri = subject._stepIri
+            step_iri = subject.step_iri()
         else:
-            step_iri = StepIriRef(stepHandle, self.base, self.odgi, position, rank)
+            step_iri = StepIriRef(step_handle, self.base, self.odgi_graph, position, rank)
 
         if subject is None or step_iri == subject:
             if predicate == RDF.type or predicate is None:
                 if obj is None or obj == VG.Step:
-                    yield ([(step_iri, RDF.type, VG.Step), None])
+                    yield [(step_iri, RDF.type, VG.Step), None]
                 if obj is None or obj == FALDO.Region:
-                    yield ([(step_iri, RDF.type, FALDO.Region), None])
+                    yield [(step_iri, RDF.type, FALDO.Region), None]
             if node_handle is None:
-                node_handle = self.odgi.get_handle_of_step(stepHandle)
-            node_iri = NodeIriRef(node_handle, odgi=self.odgi, base=self.base)
-            if (predicate == VG.node or predicate is None and not self.odgi.get_is_reverse(node_handle)) and (
+                node_handle = self.odgi_graph.get_handle_of_step(step_handle)
+            node_iri = NodeIriRef(node_handle, self.base, self.odgi_graph)
+            if (predicate == VG.node or predicate is None and not self.odgi_graph.get_is_reverse(node_handle)) and (
                     obj is None or node_iri == obj):
-                yield ([(step_iri, VG.node, node_iri), None])
+                yield [(step_iri, VG.node, node_iri), None]
 
-            if (predicate == VG.reverseOfNode or predicate is None and self.odgi.get_is_reverse(node_handle)) and (
+            if (predicate == VG.reverseOfNode or predicate is None and self.odgi_graph.get_is_reverse(node_handle)) and (
                     obj is None or node_iri == obj):
-                yield ([(step_iri, VG.reverseOfNode, node_iri), None])
+                yield [(step_iri, VG.reverseOfNode, node_iri), None]
 
             if (predicate == VG.rank or predicate is None) and rank is not None:
                 rank = Literal(rank)
                 if obj is None or obj == rank:
-                    yield ([(step_iri, VG.rank, rank), None])
+                    yield [(step_iri, VG.rank, rank), None]
 
             if (predicate == VG.position or predicate is None) and position is not None:
                 position = Literal(position)
                 if obj is None or position == obj:
-                    yield ([(step_iri, VG.position, position), None])
+                    yield [(step_iri, VG.position, position), None]
 
             if predicate == VG.path or predicate is None:
-                path = self.odgi.get_path_handle_of_step(stepHandle)
-                path_name = self.odgi.get_path_name(path)
+                path = self.odgi_graph.get_path_handle_of_step(step_handle)
+                path_name = self.odgi_graph.get_path_name(path)
 
                 path_iri = self.pathNS.term(f'{path_name}')
                 if obj is None or path_iri == obj:
-                    yield ([(step_iri, VG.path, path_iri), None])
+                    yield [(step_iri, VG.path, path_iri), None]
 
             if predicate is None or predicate == FALDO.begin:
-                yield ([(step_iri, FALDO.begin, StepBeginIriRef(step_iri)), None])
+                yield [(step_iri, FALDO.begin, StepBeginIriRef(step_iri)), None]
 
             if predicate is None or predicate == FALDO.end:
-                yield ([(step_iri, FALDO.end, StepEndIriRef(step_iri)), None])
+                yield [(step_iri, FALDO.end, StepEndIriRef(step_iri)), None]
 
             if subject is None:
                 begin = StepBeginIriRef(step_iri)
-                yield from self.faldoForStep(step_iri, begin, predicate, obj)
+                yield from self.faldo_for_step(step_iri, begin, predicate, obj)
                 end = StepEndIriRef(step_iri)
-                yield from self.faldoForStep(step_iri, end, predicate, obj)
+                yield from self.faldo_for_step(step_iri, end, predicate, obj)
 
-        if (type(subject) == StepBeginIriRef) and step_iri == subject._stepIri:
-            yield from self.faldoForStep(subject._stepIri, subject, predicate, obj)
-        elif type(subject) == StepEndIriRef and step_iri == subject._stepIri:
-            yield from self.faldoForStep(subject._stepIri, subject, predicate, obj)
+        if (type(subject) == StepBeginIriRef) and step_iri == subject.step_iri():
+            yield from self.faldo_for_step(subject.step_iri(), subject, predicate, obj)
+        elif type(subject) == StepEndIriRef and step_iri == subject.step_iri():
+            yield from self.faldo_for_step(subject.step_iri(), subject, predicate, obj)
 
-    def faldoForStep(self, step_iri, subject, predicate, obj):
+    def faldo_for_step(self, step_iri: StepIriRef, subject: Identifier, predicate:URIRef, obj: Node):
         ep = Literal(subject.position())
         if (predicate is None or predicate == FALDO.position) and (obj is None or obj == ep):
-            yield ([(subject, FALDO.position, ep), None])
+            yield [(subject, FALDO.position, ep), None]
         if (predicate is None or predicate == RDF.type) and (obj is None or obj == FALDO.ExactPosition):
-            yield ([(subject, RDF.type, FALDO.ExactPosition), None])
+            yield [(subject, RDF.type, FALDO.ExactPosition), None]
         if (predicate is None or predicate == RDF.type) and (obj is None or obj == FALDO.Position):
-            yield ([(subject, RDF.type, FALDO.Position), None])
+            yield [(subject, RDF.type, FALDO.Position), None]
         if predicate is None or predicate == FALDO.reference:
             path = step_iri.path()
-            pathName = self.odgi.get_path_name(path)
-            pathIri = self.pathNS.term(f'{pathName}')
-            if obj is None or obj == pathIri:
-                yield ([(subject, FALDO.reference, pathIri), None])
+            path_iri = self.find_path_iri_by_handle(path)
+            if obj is None or obj == path_iri:
+                yield [(subject, FALDO.reference, path_iri), None]
 
-    def handleToTriples(self, predicate, obj, node_handle):
-        node_iri = NodeIriRef(node_handle, odgi=self.odgi, base=self.base)
+    def handle_to_triples(self, predicate, obj, node_handle: odgi.handle):
+        node_iri = NodeIriRef(node_handle,self.base, self.odgi_graph)
 
         if predicate == RDF.value or predicate is None:
-            seq_value = rdflib.term.Literal(self.odgi.get_sequence(node_handle))
+            seq_value = rdflib.term.Literal(self.odgi_graph.get_sequence(node_handle))
             if obj is None or obj == seq_value:
                 yield [(node_iri, RDF.value, seq_value), None]
         elif (predicate == RDF.type or predicate is None) and (obj is None or obj == VG.Node):
             yield [(node_iri, RDF.type, VG.Node), None]
 
-    def handleToEdgeTriples(self, subject, predicate, obj, nodeHandle):
-
+    def handle_to_edge_triples(self, subject: NodeIriRef, predicate: URIRef, obj: NodeIriRef):
         if predicate is None or (predicate in nodeRelatedPredicates):
             to_node_handles = []
-            self.odgi.follow_edges(nodeHandle, False, CollectEdges(to_node_handles));
-            node_iri = NodeIriRef(nodeHandle, odgi=self.odgi, base=self.base)
+            self.odgi_graph.follow_edges(subject.node_handle(), False, CollectEdges(to_node_handles))
+            node_iri = NodeIriRef(subject.node_handle(), self.base,self.odgi_graph)
             for edge in to_node_handles:
+                other_iri = NodeIriRef(edge, self.base, self.odgi_graph)
+                if obj is None or other_iri == obj:
+                    yield from self.generate_edge_triples(edge, subject.node_handle(), node_iri, other_iri, predicate)
 
-                otherIri = NodeIriRef(edge, odgi=self.odgi, base=self.base)
-
-                if obj is None or otherIri == obj:
-                    node_is_reverse = self.odgi.get_is_reverse(nodeHandle);
-                    other_is_reverse = self.odgi.get_is_reverse(edge)
-                    # TODO: check the logic here
-                    if (
-                            predicate is None or VG.linksForwardToForward == predicate) and not node_is_reverse and not other_is_reverse:
-                        yield ([(node_iri, VG.linksForwardToForward, otherIri), None])
-                    if (
-                            predicate is None or VG.linksReverseToForward == predicate) and node_is_reverse and not other_is_reverse:
-                        yield ([(node_iri, VG.linksReverseToForward, otherIri), None])
-                    if (
-                            predicate is None or VG.linksReverseToReverse == predicate) and node_is_reverse and other_is_reverse:
-                        yield ([(node_iri, VG.linksReverseToReverse, otherIri), None])
-                    if (
-                            predicate is None or VG.linksReverseToReverse == predicate) and not node_is_reverse and other_is_reverse:
-                        yield ([(node_iri, VG.linksForwardToReverse, otherIri), None])
-                    if predicate is None or VG.links == predicate:
-                        yield ([(node_iri, VG.links, otherIri), None])
+    def generate_edge_triples(self, edge, node_handle: odgi.handle, node_iri: NodeIriRef,
+                              other_iri: NodeIriRef, predicate: URIRef):
+        node_is_reverse = self.odgi_graph.get_is_reverse(node_handle);
+        other_is_reverse = self.odgi_graph.get_is_reverse(edge)
+        # TODO: check the logic here
+        if (
+                predicate is None or VG.linksForwardToForward == predicate) and not node_is_reverse and not other_is_reverse:
+            yield [(node_iri, VG.linksForwardToForward, other_iri), None]
+        if (predicate is None or VG.linksReverseToForward == predicate) and node_is_reverse and not other_is_reverse:
+            yield [(node_iri, VG.linksReverseToForward, other_iri), None]
+        if (
+                predicate is None or VG.linksReverseToReverse == predicate) and node_is_reverse and other_is_reverse:
+            yield [(node_iri, VG.linksReverseToReverse, other_iri), None]
+        if (
+                predicate is None or VG.linksReverseToReverse == predicate) and not node_is_reverse and other_is_reverse:
+            yield [(node_iri, VG.linksForwardToReverse, other_iri), None]
+        if predicate is None or VG.links == predicate:
+            yield [(node_iri, VG.links, other_iri), None]
 
     def bind(self, prefix, namespace):
         self.namespace_manager.bind(prefix, namespace)
@@ -371,24 +376,27 @@ class OdgiStore(Store):
             if search_prefix == prefix:
                 return namespace
 
-    def prefix(self, searchNamespace):
+    def prefix(self, search_namespace):
         for prefix, namespace in self.namespace_manager.namespaces():
-            if searchNamespace == namespace:
+            if search_namespace == namespace:
                 return prefix
 
     def namespaces(self):
         return self.namespace_manager.namespaces()
 
     def handles(self):
-        node_id = self.odgi.min_node_id()
+        node_id = self.odgi_graph.min_node_id()
 
-        max_node_id = self.odgi.max_node_id()
+        max_node_id = self.odgi_graph.max_node_id()
         while node_id <= max_node_id:
-            if self.odgi.has_node(node_id):
+            if self.odgi_graph.has_node(node_id):
                 node_id = node_id + 1
-                yield self.odgi.get_handle(node_id - 1)
+                yield self.odgi_graph.get_handle(node_id - 1)
 
-    def pathHandles(self):
-        paths = []
-        self.odgi.for_each_path_handle(CollectPaths(paths))
-        yield from paths
+    def find_path_iri_by_handle(self, path_handle: odgi.path_handle):
+        for p in self.knownPaths:
+            if p.path() == path_handle:
+                return p
+            elif self.odgi_graph.get_path_name(p.path()) == self.odgi_graph.get_path_name(path_handle):
+                return p
+        raise Exception("no path handle known "+str(path_handle))
