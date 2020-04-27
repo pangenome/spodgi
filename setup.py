@@ -3,7 +3,7 @@ import sys
 from setuptools import setup
 
 project = "spodgi"
-version = "0.0.4"
+version = "0.0.5"
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
