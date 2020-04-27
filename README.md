@@ -24,6 +24,21 @@ You need to have Odgi build locally and added it's pybind module directory to yo
 You need to have an Odgi file. So conversion from GFA
 needs to be done using `odgi build -g test/t.gfa -o test/o.odgi`
 
+## How to run with docker
+
+There is a Docker file in `docker/`. 
+Which you can build with 
+
+```bash
+docker build -t spodgi docker/
+# or podman
+docker build -t spodgi docker/
+```
+Then run interactivily with
+```
+docker run -it spodgi
+```
+
 # Running a SPARQL query on a Odgi
 
 ```bash
