@@ -1,7 +1,7 @@
 FROM debian:buster
 ENV DEBIAN_VERSION=buster-20200327
-ENV ODGI_COMMIT=5e18490156f08368dae0b25a69e0cf5efa5427ca
-ENV SPODGI_COMMIT=f2b352e0b078018f5395cfaff36c1f044dda864e
+ENV ODGI_COMMIT=dc76da391943a6bd6a7784e42f946dc478b865a5
+ENV SPODGI_COMMIT=8a9aa7d261113b0dbc55898d9e56e29dbc13ae01
 
 WORKDIR "/var/lib/odgi"
 RUN DEBIAN_FRONTEND=noninteractive \
@@ -16,7 +16,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       zlib1g-dev \
     && rm -fr /var/lib/apt/lists/* \
     && update-ca-certificates \
-    && git clone --depth 1 --shallow-submodules --recursive https://github.com/vgteam/odgi.git \
+    && git clone --shallow-submodules --recursive https://github.com/vgteam/odgi.git \
     && cd odgi \
     && git checkout "${ODGI_COMMIT}" \
     && cmake -DBUILD_STATIC=0 -H. -Bbuild \
@@ -24,7 +24,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
     && rm -rf deps \
     && rm -rf build \
     && rm -rf lib/*.a \
-    && cp bin/odgi /usr/bin \
+    && ls -s bin/odgi /usr/bin \
     && apt-get remove -y --autoremove  build-essential cmake \
     && apt-get clean
 
