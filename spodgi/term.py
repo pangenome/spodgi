@@ -91,7 +91,7 @@ class StepIriRef(URIRef):
         path_name = self._odgi.get_path_name(self._odgi.get_path_handle_of_step(self._stepHandle))
         try:
             result = urlparse(path_name)
-            return f'{path_name}#step-{self._rank}'
+            return f'{path_name}-step-{self._rank}'
         except ValueError:
             return f'{self._base}path/{path_name}/step/{self._rank}'
 
@@ -222,7 +222,7 @@ class StepBeginIriRef(URIRef):
             self._stepIri.odgi().get_path_handle_of_step(self.step_handle()))
         try:
             result = urlparse(path_name)
-            return f'{path_name}#p{self.position()}'
+            return f'{path_name}-p{self.position()}'
         except ValueError:
             return f'{self._stepIri.base()}path/{path_name}/position/{self.position()}'
 
@@ -304,7 +304,7 @@ class StepEndIriRef(URIRef):
             self._stepIri.odgi().get_path_handle_of_step(self._stepIri.step_handle()))
         try:
             result = urlparse(path_name)
-            return f'{path_name}#p{end}'
+            return f'{path_name}-p{end}'
         except ValueError:
             return f'{self._stepIri.base()}path/{path_name}/position/{end}'
 
