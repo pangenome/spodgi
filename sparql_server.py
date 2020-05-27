@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 from flask import Flask, request, jsonify, Response
 from spodgi import OdgiStore
 import sys
@@ -53,4 +54,4 @@ if __name__ == '__main__':
     spodgi = Graph(store=s)
     spodgi.open(odgifile, create=False)
 
-    app.run(host='0.0.0.0',port=5001, debug = True)
+    app.run(host='0.0.0.0',port=5001)

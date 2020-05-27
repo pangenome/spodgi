@@ -57,6 +57,18 @@ See more example queries in the queries directory. You can run them like this.
 ./sparql_odgi.py test/t.odgi "$(cat queries/selectAllSteps.rq)"
 ```
 
+# Setting up server to run SPARQL over HTTP
+
+The following command will expose the `test/t.odgi` file for querying at `http://127.0.0.1:5001/sparql`.
+```bash
+./sparql_server.py test/t.odgi
+```
+
+If running through docker, expose the `5001` port.
+```
+docker run -p 5001:5001 -it spodgi
+```
+
 # Variation Graphs as RDF/semantic graphs.
 
 The modelling is following what is described in the [vg](https://github.com/vgteam/vg) repository. 
