@@ -46,12 +46,16 @@ def sparql_endpoint():
     response.headers["Content-Type"] = mimetype
     return response
 
-if __name__ == '__main__':
-
-    odgifile = sys.argv[1]
+@click.command()
+@click.argument('odgifile')
+@click.option('--base', default='http://example.org/vg/')
+def main(odgifile, base):
     plugin.register('OdgiStore', Store,'spodgi.OdgiStore', 'OdgiStore')
-    s = plugin.get('OdgiStore', Store)(base='http://example.org/vg/')
+    s = plugin.get('OdgiStore', Store)(base=base)
     spodgi = Graph(store=s)
     spodgi.open(odgifile, create=False)
 
     app.run(host='0.0.0.0',port=5001)
+
+if __name__ == '__main__':
+    main()
