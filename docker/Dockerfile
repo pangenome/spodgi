@@ -9,5 +9,6 @@ RUN git clone https://github.com/pangenome/spodgi \
     && cd spodgi \
     && python3 setup.py install \
     && cp sparql_odgi.py /usr/bin \
-    && cp odgi_to_rdf.py /usr/bin
+    && cp odgi_to_rdf.py /usr/bin \
+    && cp sparql_server.py /usr/bin
 CMD ["bash"]
