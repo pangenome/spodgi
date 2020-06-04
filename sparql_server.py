@@ -1,6 +1,7 @@
 #!/usr/bin/python3
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, g
 from spodgi import OdgiStore
+import click
 import sys
 import json
 
@@ -20,9 +21,9 @@ def get_format_and_mimetype(accept_headers, output_format):
 
     if not output_format:
         output_format = "xml"
-        if "text/html" in a:
+        if "text/html" in accept_headers:
             output_format = "html"
-        if "application/sparql-results+json" in a:
+        if "application/sparql-results+json" in accept_headers:
             output_format = "json"
         
     mimetype = resultformat_to_mime(output_format)
@@ -31,6 +32,7 @@ def get_format_and_mimetype(accept_headers, output_format):
     return output_format, mimetype
 
 app = Flask(__name__)
+spodgi = None
 @app.route('/sparql')
 def sparql_endpoint():
     query = request.args.get('query')
@@ -45,16 +47,15 @@ def sparql_endpoint():
     response = Response(res)
     response.headers["Content-Type"] = mimetype
     return response
-
 @click.command()
 @click.argument('odgifile')
 @click.option('--base', default='http://example.org/vg/')
 def main(odgifile, base):
+    global spodgi
     plugin.register('OdgiStore', Store,'spodgi.OdgiStore', 'OdgiStore')
-    s = plugin.get('OdgiStore', Store)(base=base)
-    spodgi = Graph(store=s)
+    store = plugin.get('OdgiStore', Store)(base=base)
+    spodgi = Graph(store=store)
     spodgi.open(odgifile, create=False)
-
     app.run(host='0.0.0.0',port=5001)
 
 if __name__ == '__main__':
